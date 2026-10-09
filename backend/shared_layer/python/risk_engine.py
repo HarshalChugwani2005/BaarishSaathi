@@ -2,8 +2,6 @@ import os
 import boto3
 import json
 from datetime import datetime, timedelta
-import numpy as np
-
 bedrock = None
 
 def get_bedrock_client():
@@ -71,11 +69,14 @@ def analyze_tide(hourly_times, hourly_heights, now):
             
     # If no peaks in the exact next 24h due to windowing, just find the max
     if not peaks:
-        max_idx = np.argmax(future_heights)
+        max_idx = future_heights.index(max(future_heights))
         peaks.append((future_times[max_idx], future_heights[max_idx]))
         
-    p75 = np.percentile(future_heights, 75)
-    p50 = np.percentile(future_heights, 50)
+    sorted_heights = sorted(future_heights)
+    p75_idx = int(len(sorted_heights) * 0.75)
+    p50_idx = int(len(sorted_heights) * 0.50)
+    p75 = sorted_heights[p75_idx]
+    p50 = sorted_heights[p50_idx]
     
     next_high_tide_time, next_high_tide_height = peaks[0]
     hours_to_next = (next_high_tide_time - now).total_seconds() / 3600.0
