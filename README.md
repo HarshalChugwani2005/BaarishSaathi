@@ -85,7 +85,7 @@ flowchart TD
 ---
 
 ## ☁️ AWS Services Used & Why
-- **Amazon S3**: Hosts the static, zero-build-step vanilla JS/HTML frontend. Ultra-cheap and infinitely scalable.
+- **Amazon S3**: Hosts the static, zero-build-step vanilla JS/HTML frontend. Ultra-cheap and infinitely scalable. *(Note: Deployed via S3 Static Website Hosting (HTTP) due to new-account AWS restrictions that block the immediate creation of CloudFront distributions for HTTPS.)*
 - **AWS API Gateway (HTTP API)**: Provides a lightweight, fast, and throttled entry point for our backend APIs to prevent abuse.
 - **AWS Lambda (Python 3.11)**: Serverless compute handles real-time risk calculations and cron jobs without paying for idle server time.
 - **Amazon DynamoDB**: NoSQL document store perfectly suited for low-latency retrieval of static flood spot metadata and tracking user subscriptions.
@@ -110,7 +110,9 @@ This entire architecture is built to stay comfortably within the AWS Free Tier, 
 1. **Data Source Validation**: The hotspot coordinates and severity ratings in this app are based on historical observations and common knowledge. **They must be verified against official Brihanmumbai Municipal Corporation (BMC) disaster management bulletins.**
 2. **Rule-Based Scoring**: The risk algorithm relies on heuristic weights (e.g., 40% for next 3h rain, 25% for 24h rain). It does not account for complex hydrological modeling like ground saturation or soil drainage rates.
 3. **Open-Meteo Reliability**: The app uses the free-tier Open-Meteo API, which may rate-limit aggressive polling.
-4. **Email Confirmation**: AWS SNS requires users to explicitly click a confirmation link in their email before receiving alerts. 
+4. **Email Confirmation**: AWS SNS requires users to explicitly click a confirmation link in their email before receiving alerts.
+5. **HTTP Hosting**: The frontend is currently hosted on an S3 Static Website Endpoint (HTTP). Implementing HTTPS via CloudFront is the intended architecture, but could not be provisioned due to AWS restrictions on newly created accounts.
+6. **Bedrock AI Fallback**: If Bedrock model access (Nova-Lite) is pending approval in the AWS console, the app will gracefully fall back to a rule-based natural language template without crashing.
 
 ---
 

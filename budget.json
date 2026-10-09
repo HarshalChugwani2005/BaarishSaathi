@@ -1,0 +1,9 @@
+{
+  "BudgetName": "BaarishSaathiHackathonBudget",
+  "BudgetLimit": {
+    "Amount": "20.0",
+    "Unit": "USD"
+  },
+  "TimeUnit": "MONTHLY",
+  "BudgetType": "COST"
+}

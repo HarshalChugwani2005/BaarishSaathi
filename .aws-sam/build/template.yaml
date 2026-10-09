@@ -1,0 +1,201 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'BaarishSaathi Serverless Stack
+
+  '
+Globals:
+  Function:
+    Timeout: 15
+    MemorySize: 256
+    Runtime: python3.11
+    Architectures:
+    - x86_64
+Resources:
+  BaarishApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 50
+        ThrottlingRateLimit: 100
+      CorsConfiguration:
+        AllowOrigins:
+        - '*'
+        AllowHeaders:
+        - '*'
+        AllowMethods:
+        - '*'
+  FloodSpotsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: FloodSpots
+      AttributeDefinitions:
+      - AttributeName: spotId
+        AttributeType: S
+      KeySchema:
+      - AttributeName: spotId
+        KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+  SubscribersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Subscribers
+      AttributeDefinitions:
+      - AttributeName: email
+        AttributeType: S
+      KeySchema:
+      - AttributeName: email
+        KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+  BaarishAlertsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: BaarishAlerts
+  BaarishSharedLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: baarish-shared-layer
+      Description: Shared risk engine and Bedrock logic
+      ContentUri: ..\..\backend\shared_layer
+      CompatibleRuntimes:
+      - python3.11
+  SpotsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: SpotsFunction
+      Handler: app.lambda_handler
+      Events:
+        GetSpots:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: BaarishApi
+            Path: /spots
+            Method: GET
+      Policies:
+      - DynamoDBReadPolicy:
+          TableName:
+            Ref: FloodSpotsTable
+    Metadata:
+      SamResourceId: SpotsFunction
+  RiskFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: RiskFunction
+      Handler: app.lambda_handler
+      Layers:
+      - Ref: BaarishSharedLayer
+      Events:
+        GetRisk:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: BaarishApi
+            Path: /risk
+            Method: GET
+      Policies:
+      - DynamoDBReadPolicy:
+          TableName:
+            Ref: FloodSpotsTable
+      - Statement:
+        - Effect: Allow
+          Action: bedrock:InvokeModel
+          Resource: '*'
+    Metadata:
+      SamResourceId: RiskFunction
+  SubscribeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: SubscribeFunction
+      Handler: app.lambda_handler
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN:
+            Ref: BaarishAlertsTopic
+      Events:
+        PostSubscribe:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: BaarishApi
+            Path: /subscribe
+            Method: POST
+      Policies:
+      - DynamoDBWritePolicy:
+          TableName:
+            Ref: SubscribersTable
+      - Statement:
+        - Effect: Allow
+          Action: sns:Subscribe
+          Resource:
+            Ref: BaarishAlertsTopic
+    Metadata:
+      SamResourceId: SubscribeFunction
+  ScheduledCheckFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ScheduledCheckFunction
+      Handler: app.lambda_handler
+      Layers:
+      - Ref: BaarishSharedLayer
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN:
+            Ref: BaarishAlertsTopic
+      Events:
+        HourlyCheck:
+          Type: Schedule
+          Properties:
+            Schedule: rate(1 hour)
+            Enabled: true
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: FloodSpotsTable
+      - DynamoDBReadPolicy:
+          TableName:
+            Ref: SubscribersTable
+      - SNSPublishMessagePolicy:
+          TopicName:
+            Fn::GetAtt:
+            - BaarishAlertsTopic
+            - TopicName
+    Metadata:
+      SamResourceId: ScheduledCheckFunction
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      WebsiteConfiguration:
+        IndexDocument: index.html
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: FrontendBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal: '*'
+          Action: s3:GetObject
+          Resource:
+            Fn::Sub: ${FrontendBucket.Arn}/*
+Outputs:
+  ApiEndpoint:
+    Description: HTTP API endpoint URL
+    Value:
+      Fn::Sub: https://${BaarishApi}.execute-api.${AWS::Region}.amazonaws.com/
+  FrontendUrl:
+    Description: S3 Website URL for Frontend
+    Value:
+      Fn::GetAtt:
+      - FrontendBucket
+      - WebsiteURL
+  FrontendBucketName:
+    Description: Frontend S3 Bucket Name
+    Value:
+      Ref: FrontendBucket

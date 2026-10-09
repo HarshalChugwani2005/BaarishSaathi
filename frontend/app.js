@@ -1,4 +1,4 @@
-// Configuration - Set this to the live API Gateway URL in production
+// Configuration
 const API_BASE_URL = "https://6vioy2xsp0.execute-api.ap-south-1.amazonaws.com"; 
 
 // Map and state variables
@@ -6,35 +6,38 @@ const markers = {};
 let allSpots = [];
 let currentRiskData = {};
 let isSimulating = false;
+let currentSelectedSpot = null;
 
-// Initialize Map centered on Mumbai
-const map = L.map('map').setView([19.0760, 72.8777], 11);
+// Initialize Map
+const map = L.map('map', {zoomControl: false}).setView([19.0760, 72.8777], 11);
+L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+// Using standard OSM basemap since Carto now requires an API key
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     maxZoom: 19
 }).addTo(map);
 
 // DOM Elements
 const spotSelect = document.getElementById('spot-select');
 const simulateToggle = document.getElementById('simulate-toggle');
-const detailCard = document.getElementById('detail-card');
+const bottomSheet = document.getElementById('bottom-sheet');
 const closeCardBtn = document.getElementById('close-card');
 const cardContent = document.getElementById('card-content');
 const globalLoading = document.getElementById('global-loading');
 const subscribeForm = document.getElementById('subscribe-form');
 const subscribeEmail = document.getElementById('subscribe-email');
-const subscribeMsg = document.getElementById('subscribe-msg');
+const subscribeSection = document.getElementById('subscribe-section');
+const spotListContainer = document.getElementById('spot-list');
+const cardTitle = document.getElementById('card-title');
+const cardBadge = document.getElementById('card-badge');
+const sheetHandleArea = document.getElementById('sheet-handle-area');
 
 // Custom Icons
-const createIcon = (color) => {
-    const markerHtml = `<div style="background-color: ${color}; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 8px rgba(0,0,0,0.8);"></div>`;
-    return L.divIcon({ html: markerHtml, className: 'custom-div-icon', iconSize: [24, 24], iconAnchor: [12, 12] });
-};
-const icons = {
-    'LOW': createIcon('#2b9348'),
-    'MEDIUM': createIcon('#e85d04'),
-    'HIGH': createIcon('#d00000'),
-    'UNKNOWN': createIcon('#6c757d')
+const createIcon = (level) => {
+    const levelClass = level.toLowerCase();
+    const markerHtml = `<div class="marker-pin ${levelClass}"></div>`;
+    return L.divIcon({ html: markerHtml, className: 'custom-div-icon', iconSize: [22, 22], iconAnchor: [11, 11] });
 };
 
 // Event Listeners
@@ -43,28 +46,28 @@ simulateToggle.addEventListener('change', (e) => {
     fetchRisks();
 });
 
-spotSelect.addEventListener('change', (e) => {
-    const spotId = e.target.value;
-    if (spotId) {
-        showDetailCard(spotId);
-        const spot = allSpots.find(s => s.spotId === spotId);
-        if (spot) map.setView([spot.lat, spot.lng], 14);
-    } else {
-        hideDetailCard();
-    }
-});
+if (spotSelect) {
+    spotSelect.addEventListener('change', (e) => {
+        if (e.target.value) {
+            selectSpot(e.target.value);
+        } else {
+            hideDetailCard();
+        }
+    });
+}
 
-closeCardBtn.addEventListener('click', hideDetailCard);
+if (closeCardBtn) closeCardBtn.addEventListener('click', hideDetailCard);
 
 if (subscribeForm) {
     subscribeForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = subscribeEmail.value;
-        const spotId = spotSelect.value;
+        const spotId = currentSelectedSpot;
         if (!email || !spotId) return;
 
-        subscribeMsg.className = "subscribe-msg";
-        subscribeMsg.textContent = "Subscribing...";
+        const btn = subscribeForm.querySelector('button');
+        btn.textContent = "Subscribing...";
+        btn.disabled = true;
         
         try {
             const res = await fetch(`${API_BASE_URL}/subscribe`, {
@@ -75,58 +78,91 @@ if (subscribeForm) {
             const data = await res.json();
             
             if (res.ok) {
-                subscribeMsg.classList.add('success');
-                subscribeMsg.textContent = data.message;
+                showToast(data.message, 'success');
                 subscribeEmail.value = '';
             } else {
                 throw new Error(data.error || "Subscription failed.");
             }
         } catch (err) {
-            subscribeMsg.classList.add('error');
-            subscribeMsg.textContent = err.message;
+            showToast(err.message, 'error');
+        } finally {
+            btn.textContent = "Subscribe";
+            btn.disabled = false;
         }
     });
 }
+
+// Bottom Sheet Logic for Mobile
+let startY = 0;
+let currentTranslate = 0;
+const PEEK = 22;
+const HALF = 50;
+const FULL = 85;
+
+function setSheetState(state) {
+    bottomSheet.className = 'bottom-sheet'; // clear previous states
+    if (state === 'hidden') bottomSheet.classList.add('sheet-hidden');
+    else if (state === 'peek') bottomSheet.classList.add('sheet-peek');
+    else if (state === 'half') bottomSheet.classList.add('sheet-half');
+    else if (state === 'full') bottomSheet.classList.add('sheet-full');
+}
+
+sheetHandleArea.addEventListener('touchstart', e => {
+    startY = e.touches[0].clientY;
+}, {passive: true});
+
+sheetHandleArea.addEventListener('touchend', e => {
+    const endY = e.changedTouches[0].clientY;
+    const delta = startY - endY; // positive = dragged up
+    
+    if (bottomSheet.classList.contains('sheet-peek')) {
+        if (delta > 30) setSheetState('half');
+    } else if (bottomSheet.classList.contains('sheet-half')) {
+        if (delta > 30) setSheetState('full');
+        if (delta < -30) setSheetState('peek');
+    } else if (bottomSheet.classList.contains('sheet-full')) {
+        if (delta < -30) setSheetState('half');
+    }
+});
+sheetHandleArea.addEventListener('click', () => {
+    if (bottomSheet.classList.contains('sheet-peek')) setSheetState('half');
+    else if (bottomSheet.classList.contains('sheet-half')) setSheetState('full');
+    else if (bottomSheet.classList.contains('sheet-full')) setSheetState('half');
+});
+
 
 // Main Logic
 async function init() {
     try {
         globalLoading.classList.remove('hidden');
         
-        // Fetch base spots
         const response = await fetch(`${API_BASE_URL}/spots`);
         if (!response.ok) throw new Error('Failed to load spots from API');
         allSpots = await response.json();
         
-        // Sort spots alphabetically for the dropdown
         allSpots.sort((a, b) => a.name.localeCompare(b.name));
         
         allSpots.forEach(spot => {
-            // Add option to select dropdown
-            const option = document.createElement('option');
-            option.value = spot.spotId;
-            option.textContent = spot.name;
-            spotSelect.appendChild(option);
+            if (spotSelect) {
+                const option = document.createElement('option');
+                option.value = spot.spotId;
+                option.textContent = spot.name;
+                spotSelect.appendChild(option);
+            }
             
-            // Add initial marker (gray/unknown state)
-            const marker = L.marker([spot.lat, spot.lng], { icon: icons['UNKNOWN'] })
+            const marker = L.marker([spot.lat, spot.lng], { icon: createIcon('unknown') })
                 .addTo(map)
-                .on('click', () => {
-                    spotSelect.value = spot.spotId;
-                    showDetailCard(spot.spotId);
-                    map.setView([spot.lat, spot.lng], 14);
-                });
+                .on('click', () => selectSpot(spot.spotId));
             markers[spot.spotId] = marker;
         });
 
-        // Initial risk fetch
+        renderSpotList(allSpots);
         await fetchRisks();
         
-        // Hide loading screen if successful
         globalLoading.classList.add('hidden');
     } catch (err) {
-        console.error("Initialization error:", err);
-        document.getElementById('loading-text').textContent = "Failed to load data. The API might be slow or down.";
+        console.error("Init error:", err);
+        document.getElementById('loading-text').textContent = "Couldn't load map data. Please check your connection.";
         document.getElementById('loading-text').style.color = "var(--high-color)";
         document.getElementById('retry-btn').classList.remove('hidden');
         document.querySelector('.spinner').classList.add('hidden');
@@ -134,8 +170,6 @@ async function init() {
 }
 
 async function fetchRisks() {
-    globalLoading.classList.remove('hidden');
-    
     const batchSize = 3;
     for (let i = 0; i < allSpots.length; i += batchSize) {
         const batch = allSpots.slice(i, i + batchSize);
@@ -148,14 +182,13 @@ async function fetchRisks() {
                     if (res.ok) {
                         const data = await res.json();
                         currentRiskData[spot.spotId] = data;
-                        
                         if (markers[spot.spotId]) {
-                            markers[spot.spotId].setIcon(icons[data.riskLevel]);
+                            markers[spot.spotId].setIcon(createIcon(data.riskLevel));
                         }
-                        break; // Success, exit retry loop
+                        break; 
                     }
                 } catch (e) {
-                    console.error(`Failed to fetch risk for ${spot.spotId}:`, e);
+                    console.error(`Failed risk for ${spot.spotId}:`, e);
                 }
                 retries--;
                 if (retries >= 0) await new Promise(r => setTimeout(r, 1000));
@@ -164,67 +197,172 @@ async function fetchRisks() {
         await Promise.all(promises);
     }
     
-    globalLoading.classList.add('hidden');
+    // Update sidebar list sorting based on new risk data
+    const sortedSpots = [...allSpots].sort((a, b) => {
+        const scoreA = currentRiskData[a.spotId]?.score || 0;
+        const scoreB = currentRiskData[b.spotId]?.score || 0;
+        return scoreB - scoreA;
+    });
+    renderSpotList(sortedSpots);
     
-    // Refresh card if one is already open
-    if (spotSelect.value) {
-        showDetailCard(spotSelect.value);
+    if (currentSelectedSpot) {
+        renderDetailCard(currentSelectedSpot);
     }
 }
 
-function showDetailCard(spotId) {
-    const data = currentRiskData[spotId];
-    if (!data) return; // Wait until risk data is loaded
+function renderSpotList(spots) {
+    if (!spotListContainer) return;
+    spotListContainer.innerHTML = '';
+    spots.forEach(spot => {
+        const data = currentRiskData[spot.spotId];
+        const riskLevel = data ? data.riskLevel.toLowerCase() : 'unknown';
+        const score = data ? data.score : '-';
+        
+        const item = document.createElement('div');
+        item.className = `spot-list-item ${currentSelectedSpot === spot.spotId ? 'selected' : ''}`;
+        item.onclick = () => selectSpot(spot.spotId);
+        item.innerHTML = `
+            <div class="spot-item-info">
+                <h4>${spot.name}</h4>
+                <p>${spot.area}</p>
+            </div>
+            <div class="badge ${riskLevel}">
+                ${riskLevel === 'high' ? '<span class="badge-icon high"></span>' : (riskLevel === 'medium' ? '<span class="badge-icon medium"></span>' : '<span class="badge-icon low"></span>')}
+                ${score}
+            </div>
+        `;
+        spotListContainer.appendChild(item);
+    });
+}
+
+function selectSpot(spotId) {
+    if (currentSelectedSpot && markers[currentSelectedSpot]) {
+        const oldIcon = markers[currentSelectedSpot].getIcon();
+        const div = markers[currentSelectedSpot].getElement();
+        if(div && div.children[0]) div.children[0].classList.remove('selected');
+    }
     
-    const spot = data.spotDetails;
+    currentSelectedSpot = spotId;
+    if (spotSelect) spotSelect.value = spotId;
+    
+    const spot = allSpots.find(s => s.spotId === spotId);
+    if (spot) {
+        // Pan map keeping marker visible above bottom sheet on mobile
+        if (window.innerWidth < 900) {
+            map.setView([spot.lat - 0.02, spot.lng], 13);
+        } else {
+            map.setView([spot.lat, spot.lng], 14);
+        }
+    }
+    
+    if (markers[spotId]) {
+        const div = markers[spotId].getElement();
+        if(div && div.children[0]) div.children[0].classList.add('selected');
+    }
+    
+    renderSpotList(allSpots); // update selection outline
+    renderDetailCard(spotId);
+    
+    if (window.innerWidth < 900) {
+        setSheetState('peek');
+    } else {
+        bottomSheet.classList.remove('sheet-hidden');
+    }
+}
+
+function renderDetailCard(spotId) {
+    const spot = allSpots.find(s => s.spotId === spotId);
+    if (!spot) return;
+    
+    cardTitle.textContent = spot.name;
+    const data = currentRiskData[spotId];
+    
+    if (!data) {
+        // Skeleton state
+        cardBadge.className = 'badge unknown';
+        cardBadge.innerHTML = 'Loading...';
+        subscribeSection.classList.add('hidden');
+        cardContent.innerHTML = `
+            <div class="stats-grid">
+                <div class="stat-box skeleton"><div class="sk-title"></div><div class="sk-text"></div></div>
+                <div class="stat-box skeleton"><div class="sk-title"></div><div class="sk-text"></div></div>
+            </div>
+            <div class="skeleton" style="height: 100px; margin-bottom: 16px; border-radius: 12px;"></div>
+            <div class="skeleton" style="height: 48px; border-radius: 8px;"></div>
+        `;
+        return;
+    }
+    
+    const rLevel = data.riskLevel.toLowerCase();
+    let iconHtml = rLevel === 'high' ? '<span class="badge-icon high"></span>' : (rLevel === 'medium' ? '<span class="badge-icon medium"></span>' : '<span class="badge-icon low"></span>');
+    cardBadge.className = `badge ${rLevel}`;
+    cardBadge.innerHTML = `${iconHtml} ${data.riskLevel}`;
+    
     const alert = data.alert || { en: "No alert data available.", hi: "", mr: "" };
     
+    // Calculate bar widths relative to a heavy rain threshold (e.g. 50mm 3h, 200mm 24h max visual)
+    const pct3h = Math.min(100, (data.rainNext3h / 50) * 100);
+    const pct24h = Math.min(100, (data.rainNext24h / 200) * 100);
+    const scorePct = data.score;
+    
     cardContent.innerHTML = `
-        <div class="badge ${data.riskLevel.toLowerCase()}">${data.riskLevel} RISK (Score: ${data.score})</div>
-        <h2 class="spot-title">${spot.name}</h2>
-        
+        <div class="score-gauge">
+            <div class="score-header">
+                <span>Risk Score</span>
+                <span>${data.score}/100</span>
+            </div>
+            <div class="score-track">
+                <div class="score-marker" style="left: ${scorePct}%"></div>
+            </div>
+        </div>
+
         <div class="stats-grid">
             <div class="stat-box">
-                <span class="stat-label">Rain Next 3h</span>
-                <span class="stat-value">${data.rainNext3h} mm</span>
+                <span class="stat-label">Next 3 Hours</span>
+                <span class="stat-value">${data.rainNext3h}<span style="font-size:12px;font-weight:400;margin-left:2px">mm</span></span>
+                <div class="stat-bar"><div class="stat-bar-fill" style="width: ${pct3h}%"></div></div>
             </div>
             <div class="stat-box">
-                <span class="stat-label">Rain Next 24h</span>
-                <span class="stat-value">${data.rainNext24h} mm</span>
+                <span class="stat-label">Next 24 Hours</span>
+                <span class="stat-value">${data.rainNext24h}<span style="font-size:12px;font-weight:400;margin-left:2px">mm</span></span>
+                <div class="stat-bar"><div class="stat-bar-fill" style="width: ${pct24h}%"></div></div>
             </div>
         </div>
 
         <div class="ai-alert">
             <div class="lang-toggle">
-                <button class="lang-btn active" onclick="setLanguage('en')">EN</button>
-                <button class="lang-btn" onclick="setLanguage('hi')">हिंदी</button>
-                <button class="lang-btn" onclick="setLanguage('mr')">मराठी</button>
+                <button class="lang-btn active" onclick="setLanguage('en')" aria-label="English">EN</button>
+                <button class="lang-btn" onclick="setLanguage('hi')" aria-label="Hindi">हिंदी</button>
+                <button class="lang-btn" onclick="setLanguage('mr')" aria-label="Marathi">मराठी</button>
             </div>
-            <p id="alert-text-container" class="alert-text" data-en="${alert.en}" data-hi="${alert.hi}" data-mr="${alert.mr}">${alert.en}</p>
+            <p id="alert-text-container" class="alert-text" aria-live="polite" data-en="${alert.en}" data-hi="${alert.hi}" data-mr="${alert.mr}">${alert.en}</p>
         </div>
         
         <div class="alternate-route">
-            <span>Safer Route:</span> ${data.alternateRoute || "No alternative suggested."}
+            <svg class="route-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 20v-4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v4"/><path d="M12 2L2 12h3v8h14v-8h3L12 2z"/></svg>
+            <div>
+                <strong style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:2px">Safer Route</strong>
+                ${data.alternateRoute || "No alternative suggested."}
+            </div>
         </div>
     `;
     
-    // Theme the top border to match risk color
-    detailCard.style.borderTopColor = `var(--${data.riskLevel.toLowerCase()}-color)`;
-    
-    // Clear subscribe form state
-    subscribeEmail.value = '';
-    subscribeMsg.textContent = '';
-    subscribeMsg.className = 'subscribe-msg hidden';
-    
-    detailCard.classList.remove('hidden');
+    subscribeSection.classList.remove('hidden');
 }
 
 function hideDetailCard() {
-    detailCard.classList.add('hidden');
-    spotSelect.value = "";
+    setSheetState('hidden');
+    currentSelectedSpot = null;
+    if (spotSelect) spotSelect.value = "";
+    renderSpotList(allSpots);
+    
+    // Remove selection outline
+    Object.values(markers).forEach(m => {
+        const div = m.getElement();
+        if(div && div.children[0]) div.children[0].classList.remove('selected');
+    });
 }
 
-// Global function for the inline onclick handlers in the template
 window.setLanguage = function(lang) {
     const container = document.getElementById('alert-text-container');
     if (!container) return;
@@ -241,6 +379,19 @@ window.setLanguage = function(lang) {
         }
     });
 };
+
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    container.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
+}
 
 // Start application
 init();

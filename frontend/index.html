@@ -2,72 +2,110 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#F7F4EE">
     <title>BaarishSaathi | Mumbai Monsoon Early-Warning</title>
+    <meta name="description" content="Real-time localized flood risk alerts and safer alternate routes for Mumbai commuters.">
+    <meta property="og:title" content="BaarishSaathi">
+    <meta property="og:description" content="Real-time localized flood risk alerts for Mumbai commuters.">
+    <!-- SVG Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💧</text></svg>">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;700&family=Inter:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;600&display=swap" rel="stylesheet">
+    
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <header class="app-header">
-        <h1>BaarishSaathi</h1>
-        <p class="tagline">Know before the water rises.</p>
-    </header>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-inner">
+                <header class="header">
+                    <div class="logo-group">
+                        <svg class="logo-mark" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" fill="currentColor"/></svg>
+                        <h1>BaarishSaathi</h1>
+                    </div>
+                    <p class="tagline">Know before the water rises.</p>
+                    <p class="intro">Tap a spot to see today's flood risk and a safer route.</p>
+                </header>
 
-    <main class="app-container">
-        <div class="controls-panel">
-            <div class="control-group">
-                <select id="spot-select">
-                    <option value="">-- Choose a location --</option>
-                </select>
-            </div>
-            
-            <div class="control-group simulate-toggle">
-                <label class="switch">
-                    <input type="checkbox" id="simulate-toggle">
-                    <span class="slider round"></span>
-                </label>
-                <span class="sim-label">Simulate Heavy Rain</span>
-            </div>
-        </div>
+                <div class="controls">
+                    <div class="control-group simulate-toggle">
+                        <label class="switch" aria-label="Toggle Heavy rain demo">
+                            <input type="checkbox" id="simulate-toggle">
+                            <span class="slider round"></span>
+                        </label>
+                        <span class="sim-label">Heavy rain demo</span>
+                    </div>
+                    
+                    <div class="control-group search-group mobile-only">
+                        <select id="spot-select" aria-label="Choose a location">
+                            <option value="">-- Choose a location --</option>
+                        </select>
+                    </div>
+                </div>
 
-        <div class="map-container">
-            <div id="map"></div>
-            
-            <div class="map-legend">
-                <span class="legend-item"><span class="dot green"></span> Low Risk</span>
-                <span class="legend-item"><span class="dot orange"></span> Medium Risk</span>
-                <span class="legend-item"><span class="dot red"></span> High Risk</span>
+                <div class="spot-list desktop-only" id="spot-list">
+                    <!-- Populated by JS -->
+                </div>
             </div>
 
-            <div id="global-loading" class="overlay hidden">
-                <div class="spinner"></div>
-                <p id="loading-text">Tap a marker to see flood risk...</p>
-                <button id="retry-btn" class="retry-btn hidden" onclick="location.reload()">Retry</button>
-            </div>
-        </div>
+            <footer class="sidebar-footer desktop-only">
+                <p>Advisory only. Based on rainfall forecasts and commonly reported hotspots. Follow official BMC alerts.</p>
+            </footer>
+        </aside>
 
-        <!-- Detail Card -->
-        <div id="detail-card" class="detail-card hidden">
-            <button class="close-btn" id="close-card">&times;</button>
-            <div id="card-content">
-                <!-- Content dynamically injected via app.js -->
-            </div>
-            
-            <div id="subscribe-section" class="subscribe-section">
-                <h4>Get alerts for this spot</h4>
-                <form id="subscribe-form" class="subscribe-form">
-                    <input type="email" id="subscribe-email" placeholder="Your email address" required>
-                    <button type="submit">Subscribe</button>
-                </form>
-                <p id="subscribe-msg" class="subscribe-msg hidden"></p>
-            </div>
-        </div>
-    </main>
+        <main class="main-content">
+            <div id="map-container" class="map-container">
+                <div id="map"></div>
+                
+                <div class="map-legend">
+                    <div class="legend-item"><span class="badge-icon low"></span>LOW</div>
+                    <div class="legend-item"><span class="badge-icon medium"></span>MEDIUM</div>
+                    <div class="legend-item"><span class="badge-icon high"></span>HIGH</div>
+                </div>
 
-    <footer class="app-footer">
-        <p>Advisory only. Based on rainfall forecasts and commonly reported hotspots. Follow official BMC alerts.</p>
-    </footer>
+                <div id="global-loading" class="overlay hidden" aria-live="polite">
+                    <div class="spinner"></div>
+                    <p id="loading-text">Checking the sky over Mumbai...</p>
+                    <button id="retry-btn" class="retry-btn hidden" onclick="location.reload()">Retry</button>
+                </div>
+            </div>
+
+            <!-- Bottom Sheet / Detail Card -->
+            <div id="bottom-sheet" class="bottom-sheet sheet-hidden">
+                <div class="sheet-handle-area" id="sheet-handle-area">
+                    <div class="sheet-handle"></div>
+                </div>
+                <div class="sheet-content-wrapper">
+                    <div class="sheet-header">
+                        <div class="header-left">
+                            <h2 id="card-title" class="spot-title">Select a spot</h2>
+                            <div id="card-badge" class="badge"></div>
+                        </div>
+                        <button class="close-btn" id="close-card" aria-label="Close details">&times;</button>
+                    </div>
+                    <div id="card-content">
+                        <!-- Content dynamically injected via app.js -->
+                    </div>
+                    
+                    <div id="subscribe-section" class="subscribe-section hidden">
+                        <h4>Get alerts for this spot</h4>
+                        <form id="subscribe-form" class="subscribe-form">
+                            <input type="email" id="subscribe-email" placeholder="Your email address" required aria-label="Email address">
+                            <button type="submit">Subscribe</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
