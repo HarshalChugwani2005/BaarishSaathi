@@ -49,9 +49,9 @@ def lambda_handler(event, context):
                     sub_arn = existing_sub['SubscriptionArn']
                     if sub_arn == 'PendingConfirmation':
                         return {
-                            "statusCode": 400,
+                            "statusCode": 200,
                             "headers": {"Access-Control-Allow-Origin": "*"},
-                            "body": json.dumps({"error": "You have a pending subscription for another spot. Please confirm it in your email first before adding more spots."})
+                            "body": json.dumps({"message": "You have a pending subscription. Please check your email to confirm it first!"})
                         }
                     else:
                         # Get current attributes
@@ -62,13 +62,19 @@ def lambda_handler(event, context):
                             spots = current_policy.get('spotId', [])
                             if spot_id not in spots:
                                 spots.append(spot_id)
-                            current_policy['spotId'] = spots
-                            # Update attributes
-                            sns.set_subscription_attributes(
-                                SubscriptionArn=sub_arn,
-                                AttributeName='FilterPolicy',
-                                AttributeValue=json.dumps(current_policy)
-                            )
+                                current_policy['spotId'] = spots
+                                # Update attributes
+                                sns.set_subscription_attributes(
+                                    SubscriptionArn=sub_arn,
+                                    AttributeName='FilterPolicy',
+                                    AttributeValue=json.dumps(current_policy)
+                                )
+                            else:
+                                return {
+                                    "statusCode": 200,
+                                    "headers": {"Access-Control-Allow-Origin": "*"},
+                                    "body": json.dumps({"message": "You are already subscribed to receive alerts for this spot!"})
+                                }
                         except Exception as inner_e:
                             print(f"Failed to update existing filter policy: {inner_e}")
                             raise inner_e

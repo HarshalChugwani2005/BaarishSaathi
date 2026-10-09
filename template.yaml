@@ -126,7 +126,11 @@ Resources:
             TableName: !Ref SubscribersTable
         - Statement:
             - Effect: Allow
-              Action: sns:Subscribe
+              Action: 
+                - sns:Subscribe
+                - sns:ListSubscriptionsByTopic
+                - sns:GetSubscriptionAttributes
+                - sns:SetSubscriptionAttributes
               Resource: !Ref BaarishAlertsTopic
 
   ScheduledCheckFunction:
