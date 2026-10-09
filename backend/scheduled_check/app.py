@@ -14,10 +14,14 @@ def lambda_handler(event, context):
         table = dynamodb.Table(table_name)
         sns_topic_arn = os.environ.get("SNS_TOPIC_ARN")
         
-        # Scan all spots
         response = table.scan()
         spots = response.get('Items', [])
+        
         now = datetime.utcnow()
+        now_ist = now + timedelta(hours=5, minutes=30)
+        
+        # Fetch tide data once for the whole run since it's same for Mumbai
+        tide_cache = risk_engine.fetch_tide_data(19.07, 72.87, now_ist)
         
         for spot in spots:
             spot_id = spot.get('spotId')
@@ -25,8 +29,8 @@ def lambda_handler(event, context):
             lng = float(spot.get("lng", 0))
             historical = int(spot.get("historicalSeverity", 1))
             low_lying = bool(spot.get("lowLying", False))
+            tide_sensitivity = float(spot.get("tideSensitivity", 0.0))
             
-            # Check lastAlertedAt to avoid spamming alerts
             last_alerted = spot.get('lastAlertedAt')
             if last_alerted:
                 last_time = datetime.fromisoformat(last_alerted)
@@ -34,7 +38,6 @@ def lambda_handler(event, context):
                     print(f"Skipping {spot_id}: Alerted recently.")
                     continue
             
-            # Fetch weather
             url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lng}&hourly=precipitation,precipitation_probability&forecast_hours=24"
             req = urllib.request.Request(url, headers={'User-Agent': 'BaarishSaathi/1.0'})
             
@@ -56,13 +59,16 @@ def lambda_handler(event, context):
                 print(f"Weather fetch failed for {spot_id}: {e}")
                 continue
                 
-            score, risk_level, _ = risk_engine.calculate_risk_score(rain_3h, rain_24h, prob, historical, low_lying)
+            tide_data = dict(tide_cache) if tide_cache and tide_sensitivity > 0 else None
+            
+            score, risk_level, breakdown, final_tide_data = risk_engine.calculate_risk_score(
+                rain_3h, rain_24h, prob, historical, low_lying, tide_sensitivity, tide_data
+            )
             
             if risk_level == "HIGH":
-                alert = risk_engine.generate_alert(spot, risk_level, round(rain_3h, 2), round(rain_24h, 2))
+                alert = risk_engine.generate_alert(spot, risk_level, round(rain_3h, 2), round(rain_24h, 2), final_tide_data)
                 english_alert = alert.get("en", "High risk flood alert.")
                 
-                # Publish to SNS with message attributes so only subscribed users get it
                 sns.publish(
                     TopicArn=sns_topic_arn,
                     Message=english_alert,
@@ -75,7 +81,6 @@ def lambda_handler(event, context):
                     }
                 )
                 
-                # Update DynamoDB with lastAlertedAt
                 table.update_item(
                     Key={'spotId': spot_id},
                     UpdateExpression="SET lastAlertedAt = :val",

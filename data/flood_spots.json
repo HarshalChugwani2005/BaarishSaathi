@@ -8,7 +8,8 @@
     "historicalSeverity": 5,
     "lowLying": true,
     "alternateRoute": "Take Dr. B.A. Road Flyover (Hindmata Flyover) to bypass the ground level roadway.",
-    "notes": "Saucer-shaped chronic depression point; water accumulates rapidly during heavy downpours."
+    "notes": "Saucer-shaped chronic depression point; water accumulates rapidly during heavy downpours.",
+    "tideSensitivity": 0.9
   },
   {
     "spotId": "milan_subway",
@@ -19,7 +20,8 @@
     "historicalSeverity": 5,
     "lowLying": true,
     "alternateRoute": "Use Milan Rail Overbridge (Milan Flyover) to cross between SV Road and Western Express Highway.",
-    "notes": "Underpass prone to rapid inundation; closed early by traffic police when rainfall exceeds 25 mm/hr."
+    "notes": "Underpass prone to rapid inundation; closed early by traffic police when rainfall exceeds 25 mm/hr.",
+    "tideSensitivity": 0.5
   },
   {
     "spotId": "andheri_subway",
@@ -30,7 +32,8 @@
     "historicalSeverity": 5,
     "lowLying": true,
     "alternateRoute": "Divert via Gokhale Bridge or Balasaheb Thackeray Flyover (Jogeshwari).",
-    "notes": "Critical arterial underpass that collects storm runoff from surrounding elevated areas; high risk of vehicle stalling."
+    "notes": "Critical arterial underpass that collects storm runoff from surrounding elevated areas; high risk of vehicle stalling.",
+    "tideSensitivity": 0.1
   },
   {
     "spotId": "sion_circle",
@@ -41,18 +44,20 @@
     "historicalSeverity": 4,
     "lowLying": true,
     "alternateRoute": "Use the elevated Sion Flyover along Eastern Express Highway; avoid ground rotary.",
-    "notes": "Major central junction prone to ponding that impedes arterial bus traffic towards Thane and South Mumbai."
+    "notes": "Major central junction prone to ponding that impedes arterial bus traffic towards Thane and South Mumbai.",
+    "tideSensitivity": 1.0
   },
   {
     "spotId": "kings_circle",
     "name": "King's Circle (Maheshwari Udyan)",
     "area": "Matunga East",
-    "lat": 19.0270,
+    "lat": 19.027,
     "lng": 72.8558,
     "historicalSeverity": 5,
     "lowLying": true,
     "alternateRoute": "Use King's Circle Flyover or re-route through R.A. Kidwai Road.",
-    "notes": "Extremely low elevation near railway tracks; floods severely when rainfall coincides with high tide."
+    "notes": "Extremely low elevation near railway tracks; floods severely when rainfall coincides with high tide.",
+    "tideSensitivity": 0.9
   },
   {
     "spotId": "dadar_tt",
@@ -63,7 +68,8 @@
     "historicalSeverity": 4,
     "lowLying": false,
     "alternateRoute": "Use Tilak Bridge or Senapati Bapat Marg elevated stretches.",
-    "notes": "High traffic density junction where localized water accumulation leads to severe vehicular bottlenecks."
+    "notes": "High traffic density junction where localized water accumulation leads to severe vehicular bottlenecks.",
+    "tideSensitivity": 0.9
   },
   {
     "spotId": "kurla_lbs_road",
@@ -74,7 +80,8 @@
     "historicalSeverity": 5,
     "lowLying": true,
     "alternateRoute": "Use Santacruz-Chembur Link Road (SCLR) or the BKC connector elevated route.",
-    "notes": "Adjacent to the Mithi River catchment; severe overflow risk during combined heavy rainfall and high tide."
+    "notes": "Adjacent to the Mithi River catchment; severe overflow risk during combined heavy rainfall and high tide.",
+    "tideSensitivity": 0.1
   },
   {
     "spotId": "chembur_post_office",
@@ -85,7 +92,8 @@
     "historicalSeverity": 3,
     "lowLying": true,
     "alternateRoute": "Divert via Eastern Freeway or Ghatkopar-Mankhurd Link Road.",
-    "notes": "Internal collector roads suffer from slow gravity drainage, causing 1-2 feet standing water."
+    "notes": "Internal collector roads suffer from slow gravity drainage, causing 1-2 feet standing water.",
+    "tideSensitivity": 0.5
   },
   {
     "spotId": "gandhi_market",
@@ -96,7 +104,8 @@
     "historicalSeverity": 5,
     "lowLying": true,
     "alternateRoute": "Take Dr. B.A. Road Flyover towards Eastern Express Highway; do not enter service lanes.",
-    "notes": "Frequent waterlogging location where municipal dewatering pumps run continuously during monsoons."
+    "notes": "Frequent waterlogging location where municipal dewatering pumps run continuously during monsoons.",
+    "tideSensitivity": 0.9
   },
   {
     "spotId": "parel_tt",
@@ -107,7 +116,8 @@
     "historicalSeverity": 4,
     "lowLying": true,
     "alternateRoute": "Take Senapati Bapat Marg elevated road or Lower Parel Flyover.",
-    "notes": "Low-lying bowl in the former mill district; access roads to suburban stations get waterlogged."
+    "notes": "Low-lying bowl in the former mill district; access roads to suburban stations get waterlogged.",
+    "tideSensitivity": 0.5
   },
   {
     "spotId": "mahim_causeway",
@@ -118,18 +128,20 @@
     "historicalSeverity": 3,
     "lowLying": false,
     "alternateRoute": "Use Bandra-Worli Sea Link (BWSL) or Western Express Highway bridge.",
-    "notes": "Tidal backflow at the Mithi River mouth can cause water accumulation and heavy traffic snarls during stormy tides."
+    "notes": "Tidal backflow at the Mithi River mouth can cause water accumulation and heavy traffic snarls during stormy tides.",
+    "tideSensitivity": 1.0
   },
   {
     "spotId": "malad_subway",
     "name": "Malad Subway",
     "area": "Malad West",
-    "lat": 19.1860,
+    "lat": 19.186,
     "lng": 72.8485,
     "historicalSeverity": 4,
     "lowLying": true,
     "alternateRoute": "Use Malad Flyover or Mith Chowki Link Road.",
-    "notes": "Deep underpass connecting east and west suburbs; barricaded immediately when water crosses 1 foot."
+    "notes": "Deep underpass connecting east and west suburbs; barricaded immediately when water crosses 1 foot.",
+    "tideSensitivity": 0.1
   },
   {
     "spotId": "dahisar_subway",
@@ -140,7 +152,8 @@
     "historicalSeverity": 4,
     "lowLying": true,
     "alternateRoute": "Use Western Express Highway flyover or Anand Nagar flyover.",
-    "notes": "Northernmost suburban underpass; drainage canal overflow can temporarily block traffic."
+    "notes": "Northernmost suburban underpass; drainage canal overflow can temporarily block traffic.",
+    "tideSensitivity": 0.1
   },
   {
     "spotId": "khar_subway",
@@ -151,7 +164,8 @@
     "historicalSeverity": 4,
     "lowLying": true,
     "alternateRoute": "Use SV Road / Linking Road or Bandra ROB (Hill Road/Turner Road bridge).",
-    "notes": "Sub-surface railway underpass prone to flash water logging; high disruption for auto-rickshaws and two-wheelers."
+    "notes": "Sub-surface railway underpass prone to flash water logging; high disruption for auto-rickshaws and two-wheelers.",
+    "tideSensitivity": 0.9
   },
   {
     "spotId": "worli_naka",
@@ -162,6 +176,7 @@
     "historicalSeverity": 3,
     "lowLying": true,
     "alternateRoute": "Take Dr. Annie Besant Road or Senapati Bapat Marg via Nehru Centre flyover.",
-    "notes": "Near coastal drainage outfalls; water ponding occurs when high tide gates are closed during heavy rain."
+    "notes": "Near coastal drainage outfalls; water ponding occurs when high tide gates are closed during heavy rain.",
+    "tideSensitivity": 1.0
   }
 ]

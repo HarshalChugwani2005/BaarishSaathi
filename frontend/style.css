@@ -831,3 +831,56 @@ input:checked + .slider:before {
         flex-direction: column;
     }
 }
+
+/* Tide Styles */
+.tide-block {
+    margin-top: var(--sp-16);
+    padding-top: var(--sp-12);
+    border-top: 1px solid var(--border);
+}
+
+.tide-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--sp-12);
+}
+
+.tide-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.tide-overlap-chip {
+    font-size: 0.75rem;
+    background-color: var(--high-bg);
+    color: var(--high-color);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.tide-info {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: var(--sp-12);
+}
+
+.tide-info strong {
+    color: var(--text-main);
+}
+
+.mini-timeline-container {
+    width: 100%;
+    height: 80px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--rad-8);
+    position: relative;
+    overflow: hidden;
+}
+

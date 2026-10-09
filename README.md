@@ -17,7 +17,7 @@ BaarishSaathi solves this by marrying hyper-local Open-Meteo rainfall forecasts 
 
 ## 🚀 Features
 - **Interactive Leaflet Map**: Real-time visualization of 15 chronic Mumbai flood spots, color-coded by current risk level (Low / Medium / High).
-- **Intelligent Risk Scoring Algorithm**: Evaluates a combination of 3-hour rainfall, 24-hour rainfall, precipitation probability, historical spot severity, and elevation (low-lying status).
+- **Intelligent Tide-Aware Risk Scoring**: Evaluates a combination of 3-hour rainfall (35%), 24-hour rainfall (20%), precipitation probability (10%), historical spot severity (15%), elevation (5%), and **Tide Factor (15%)**. Spots are assigned a `tideSensitivity` score; when heavy rainfall (>10mm/3h) overlaps with a high tide peak window, a **compound bonus (+10)** is applied to rapidly elevate coastal choke points.
 - **Tri-Lingual AI Advisories**: Amazon Bedrock translates complex meteorological data into easily digestible, multi-lingual alerts for local citizens.
 - **Automated SNS Alerts**: Users can subscribe to their specific commute bottleneck and receive targeted email alerts via AWS SNS when danger thresholds are breached.
 - **Serverless & Ultra-Fast**: Built on a 100% AWS serverless backbone ensuring high availability, zero cold-start latency, and near-zero idle costs.
@@ -53,7 +53,7 @@ flowchart TD
     subgraph External [Data Sources & AI]
         DDB[(DynamoDB\nFloodSpots & Subscribers)]
         Bedrock[Amazon Bedrock\nnova-lite]
-        Meteo[Open-Meteo API\nWeather Data]
+        Meteo[Open-Meteo API\nWeather & Marine Tide]
         SNS((AWS SNS\nBaarishAlerts Topic))
     end
     
@@ -108,17 +108,16 @@ This entire architecture is built to stay comfortably within the AWS Free Tier, 
 
 ## ⚠️ Limitations & Disclaimers
 1. **Data Source Validation**: The hotspot coordinates and severity ratings in this app are based on historical observations and common knowledge. **They must be verified against official Brihanmumbai Municipal Corporation (BMC) disaster management bulletins.**
-2. **Rule-Based Scoring**: The risk algorithm relies on heuristic weights (e.g., 40% for next 3h rain, 25% for 24h rain). It does not account for complex hydrological modeling like ground saturation or soil drainage rates.
-3. **Open-Meteo Reliability**: The app uses the free-tier Open-Meteo API, which may rate-limit aggressive polling.
-4. **Email Confirmation**: AWS SNS requires users to explicitly click a confirmation link in their email before receiving alerts.
-5. **HTTP Hosting**: The frontend is currently hosted on an S3 Static Website Endpoint (HTTP). Implementing HTTPS via CloudFront is the intended architecture, but could not be provisioned due to AWS restrictions on newly created accounts.
-6. **Bedrock AI Fallback**: If Bedrock model access (Nova-Lite) is pending approval in the AWS console, the app will gracefully fall back to a rule-based natural language template without crashing.
+2. **Rule-Based Scoring**: The risk algorithm relies on heuristic weights (e.g., 35% for next 3h rain, 15% for tide factor). It does not account for complex hydrological modeling like ground saturation or soil drainage rates.
+3. **Marine Data Approximation**: The sea level data is sourced from the Open-Meteo Marine API, which relies on a coarse global ocean model. The actual localized high tide height and timing in Mumbai's specific creeks may vary slightly.
+4. **Open-Meteo Reliability**: The app uses the free-tier Open-Meteo API, which may rate-limit aggressive polling.
+5. **Email Confirmation**: AWS SNS requires users to explicitly click a confirmation link in their email before receiving alerts.
+6. **HTTP Hosting**: The frontend is currently hosted on an S3 Static Website Endpoint (HTTP). Implementing HTTPS via CloudFront is the intended architecture, but could not be provisioned due to AWS restrictions on newly created accounts.
+7. **Bedrock AI Fallback**: If Bedrock model access (Nova-Lite) is pending approval in the AWS console, the app will gracefully fall back to a rule-based natural language template without crashing.
 
 ---
 
 ## 🔮 Future Work
-- **Tide Data Integration**: Mumbai flooding is severely exacerbated when heavy rainfall coincides with a high tide. Integrating real-time BMC tide charts would drastically improve risk accuracy.
-- **WhatsApp Alerts**: Transitioning from Email to WhatsApp via the Meta Graph API or Twilio, as it is the primary communication tool for Indian commuters.
 - **Ward-level Micro-Data**: Integrating live data from the 60+ automatic weather stations (AWS) maintained by the BMC across specific city wards.
 - **Crowdsourced Reports**: Allow users to click a "Waterlogging Detected Here" button to temporarily boost a spot's risk score for 2 hours based on real-time community consensus.
 

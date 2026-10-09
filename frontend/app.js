@@ -329,6 +329,29 @@ function renderDetailCard(spotId) {
             </div>
         </div>
 
+        ${data.tide ? `
+        <div class="tide-block">
+            <div class="tide-header">
+                <span class="tide-title">High Tide</span>
+                ${data.tide.coincidesWithRain ? '<div class="tide-overlap-chip">⚠️ Rain + high tide overlap</div>' : ''}
+            </div>
+            <div class="tide-info">
+                Next peak at <strong>${data.tide.nextHighTideTime}</strong> (${data.tide.nextHighTideHeight}m)
+            </div>
+            <div class="mini-timeline-container">
+                <svg viewBox="0 0 240 80" width="100%" height="100%" preserveAspectRatio="none">
+                    ${data.tide.coincidesWithRain ? '<rect x="30" y="0" width="40" height="80" fill="var(--high-bg)" opacity="0.5" />' : ''}
+                    <!-- Mock Rain Bars -->
+                    <rect x="10" y="50" width="15" height="30" fill="var(--accent)" opacity="0.3" rx="2" />
+                    <rect x="35" y="${data.tide.coincidesWithRain ? '20' : '60'}" width="15" height="${data.tide.coincidesWithRain ? '60' : '20'}" fill="var(--accent)" rx="2" />
+                    <rect x="60" y="55" width="15" height="25" fill="var(--accent)" opacity="0.5" rx="2" />
+                    <!-- Mock Tide Curve -->
+                    <path d="M0,60 Q40,${data.tide.coincidesWithRain ? '10' : '50'} 80,60 T160,60 T240,60" fill="none" stroke="var(--text-main)" stroke-width="2" />
+                </svg>
+            </div>
+        </div>
+        ` : ''}
+
         <div class="ai-alert">
             <div class="lang-toggle">
                 <button class="lang-btn active" onclick="setLanguage('en')" aria-label="English">EN</button>
