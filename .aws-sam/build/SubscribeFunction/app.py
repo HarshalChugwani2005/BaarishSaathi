@@ -22,16 +22,58 @@ def lambda_handler(event, context):
         table = dynamodb.Table(os.environ.get("TABLE_NAME", "Subscribers"))
         sns_topic_arn = os.environ.get("SNS_TOPIC_ARN")
         
-        # Subscribe to SNS with Filter Policy
-        response = sns.subscribe(
-            TopicArn=sns_topic_arn,
-            Protocol='email',
-            Endpoint=email,
-            Attributes={
-                "FilterPolicy": json.dumps({"spotId": [spot_id]})
-            },
-            ReturnSubscriptionArn=True
-        )
+        try:
+            response = sns.subscribe(
+                TopicArn=sns_topic_arn,
+                Protocol='email',
+                Endpoint=email,
+                Attributes={
+                    "FilterPolicy": json.dumps({"spotId": [spot_id]})
+                },
+                ReturnSubscriptionArn=True
+            )
+        except sns.exceptions.InvalidParameterException as e:
+            if "Subscription already exists with different attributes" in str(e):
+                # Find the existing subscription
+                paginator = sns.get_paginator('list_subscriptions_by_topic')
+                existing_sub = None
+                for page in paginator.paginate(TopicArn=sns_topic_arn):
+                    for sub in page['Subscriptions']:
+                        if sub['Endpoint'] == email:
+                            existing_sub = sub
+                            break
+                    if existing_sub:
+                        break
+                        
+                if existing_sub:
+                    sub_arn = existing_sub['SubscriptionArn']
+                    if sub_arn == 'PendingConfirmation':
+                        return {
+                            "statusCode": 400,
+                            "headers": {"Access-Control-Allow-Origin": "*"},
+                            "body": json.dumps({"error": "You have a pending subscription for another spot. Please confirm it in your email first before adding more spots."})
+                        }
+                    else:
+                        # Get current attributes
+                        attrs = sns.get_subscription_attributes(SubscriptionArn=sub_arn)
+                        current_policy_str = attrs.get('Attributes', {}).get('FilterPolicy', '{}')
+                        try:
+                            current_policy = json.loads(current_policy_str)
+                            spots = current_policy.get('spotId', [])
+                            if spot_id not in spots:
+                                spots.append(spot_id)
+                            current_policy['spotId'] = spots
+                            # Update attributes
+                            sns.set_subscription_attributes(
+                                SubscriptionArn=sub_arn,
+                                AttributeName='FilterPolicy',
+                                AttributeValue=json.dumps(current_policy)
+                            )
+                        except Exception as inner_e:
+                            print(f"Failed to update existing filter policy: {inner_e}")
+                            raise inner_e
+            else:
+                raise e
         
         table.put_item(Item={
             'email': email,
