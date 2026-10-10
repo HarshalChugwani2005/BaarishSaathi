@@ -6,9 +6,11 @@ import hashlib
 import boto3
 from decimal import Decimal
 from boto3.dynamodb.conditions import Key, Attr
+from botocore.config import Config
 
 dynamodb = boto3.resource('dynamodb')
-s3_client = boto3.client('s3')
+region = os.environ.get('AWS_REGION', 'ap-south-1')
+s3_client = boto3.client('s3', config=Config(region_name=region, signature_version='s3v4', s3={'addressing_style': 'virtual', 'region_name': region}))
 
 REPORTS_TABLE_NAME = os.environ.get('REPORTS_TABLE')
 PHOTOS_BUCKET_NAME = os.environ.get('PHOTOS_BUCKET')
