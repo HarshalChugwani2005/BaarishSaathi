@@ -21,6 +21,10 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <div id="demo-banner" class="demo-banner hidden" role="status" aria-live="polite">
+        <svg class="demo-banner-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <span>Demo mode: simulated heavy rain and high tide.</span>
+    </div>
     <div class="layout">
         <aside class="sidebar">
             <div class="sidebar-inner">
@@ -102,19 +106,29 @@
                         <!-- Content dynamically injected via app.js -->
                     </div>
 
+                    <!-- Primary Action: Report flooding button directly after Safer Route box -->
+                    <div class="report-action-area hidden" id="report-action-area">
+                        <button id="open-report-modal" class="primary-report-btn">
+                            <svg class="btn-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+                                <line x1="12" y1="9" x2="12" y2="13"/>
+                                <line x1="12" y1="17" x2="12.01" y2="17"/>
+                            </svg>
+                            <span>Report flooding here</span>
+                        </button>
+                    </div>
+
+                    <!-- Community Reports Section -->
                     <div id="community-reports-section" class="community-reports-section hidden">
                         <!-- Injected via app.js -->
                     </div>
-
-                    <div class="report-action-area hidden" id="report-action-area">
-                        <button id="open-report-modal" class="report-btn">🚨 Report flooding here</button>
-                    </div>
                     
+                    <!-- Secondary Action: Subscribe Section -->
                     <div id="subscribe-section" class="subscribe-section hidden">
-                        <h4>Get alerts for this spot</h4>
+                        <label for="subscribe-email" class="subscribe-label">Get alerts for this spot</label>
                         <form id="subscribe-form" class="subscribe-form">
-                            <input type="email" id="subscribe-email" placeholder="Your email address" required aria-label="Email address">
-                            <button type="submit">Subscribe</button>
+                            <input type="email" id="subscribe-email" placeholder="Your email address" required aria-label="Email address for alerts">
+                            <button type="submit" class="subscribe-btn">Subscribe</button>
                         </form>
                     </div>
                 </div>
@@ -132,19 +146,47 @@
                         <div class="severity-options">
                             <label class="sev-option">
                                 <input type="radio" name="severity" value="ANKLE" required>
-                                <span class="sev-btn">👟 Ankle deep</span>
+                                <span class="sev-btn">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <path d="M3 18c2 0 3-1 5-1s3 1 5 1 3-1 5-1 3 1 5 1"/>
+                                        <path d="M4 21c2 0 3-1 5-1s3 1 5 1 3-1 5-1 3 1 5 1"/>
+                                        <path d="M6 8v7a2 2 0 0 0 2 2h3a2 2 0 0 0 2-2V8"/>
+                                    </svg>
+                                    <span>Ankle deep</span>
+                                </span>
                             </label>
                             <label class="sev-option">
                                 <input type="radio" name="severity" value="KNEE">
-                                <span class="sev-btn">👢 Knee deep</span>
+                                <span class="sev-btn">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <path d="M3 14c2 0 3-1 5-1s3 1 5 1 3-1 5-1 3 1 5 1"/>
+                                        <path d="M3 18c2 0 3-1 5-1s3 1 5 1 3-1 5-1 3 1 5 1"/>
+                                        <path d="M7 5v10a2 2 0 0 0 2 2h4"/>
+                                    </svg>
+                                    <span>Knee deep</span>
+                                </span>
                             </label>
                             <label class="sev-option">
                                 <input type="radio" name="severity" value="WAIST">
-                                <span class="sev-btn">🩳 Waist deep</span>
+                                <span class="sev-btn">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <circle cx="12" cy="5" r="2.5"/>
+                                        <path d="M12 8v5"/>
+                                        <path d="M3 12c2 0 3-1 5-1s3 1 5 1 3-1 5-1 3 1 5 1"/>
+                                        <path d="M3 17c2 0 3-1 5-1s3 1 5 1 3-1 5-1 3 1 5 1"/>
+                                    </svg>
+                                    <span>Waist deep</span>
+                                </span>
                             </label>
                             <label class="sev-option">
                                 <input type="radio" name="severity" value="IMPASSABLE">
-                                <span class="sev-btn">🛑 Can't pass</span>
+                                <span class="sev-btn">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <circle cx="12" cy="12" r="9"/>
+                                        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                                    </svg>
+                                    <span>Can't pass</span>
+                                </span>
                             </label>
                         </div>
                         

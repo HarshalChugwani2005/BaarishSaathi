@@ -146,7 +146,7 @@ def lambda_handler(event, context):
         
         # Don't cache full spot details to save DynamoDB write capacity, just what we need
         community_confirmed = reports_data.get('communityConfirmed', False) if reports_data else False
-        alert = risk_engine.generate_alert(spot, risk_level, round(rain_next_3h, 2), round(rain_next_24h, 2), tide_data, community_confirmed)
+        alert = risk_engine.generate_alert(spot, risk_level, round(rain_next_3h, 2), round(rain_next_24h, 2), tide_data, community_confirmed, simulate or "")
         
         # We must include spotDetails in the result for the frontend
         result = {
@@ -158,7 +158,8 @@ def lambda_handler(event, context):
             "precipitationProbability": precip_prob,
             "breakdown": breakdown,
             "alternateRoute": spot.get("alternateRoute", ""),
-            "alert": alert
+            "alert": alert,
+            "alertSource": alert.pop("alertSource", "unknown")
         }
         
         if tide_data:

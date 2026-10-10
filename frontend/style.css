@@ -55,6 +55,34 @@ body {
     height: 100dvh;
     font-size: 16px;
     line-height: 1.5;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Demo Mode Banner */
+.demo-banner {
+    background-color: #FFF3E0;
+    color: #B45309;
+    border-bottom: 1px solid #FDE68A;
+    padding: 6px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    z-index: 1500;
+    width: 100%;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.demo-banner.hidden {
+    display: none !important;
+}
+
+.demo-banner-icon {
+    flex-shrink: 0;
 }
 
 h1, h2, h3, h4 {
@@ -65,8 +93,11 @@ h1, h2, h3, h4 {
 /* Layout */
 .layout {
     display: flex;
-    height: 100dvh;
+    flex: 1;
+    height: 100%;
     width: 100vw;
+    overflow: hidden;
+    position: relative;
 }
 
 .sidebar {
@@ -268,7 +299,7 @@ input:checked + .slider:before {
     border-radius: var(--rad-12);
     box-shadow: var(--shadow-md);
     border: 1px solid var(--border);
-    z-index: 500;
+    z-index: 1200; /* Stays visible above the sheet */
     display: flex;
     gap: var(--sp-16);
     font-size: 12px;
@@ -322,6 +353,14 @@ input:checked + .slider:before {
 .custom-div-icon {
     background: transparent;
     border: none;
+}
+.marker-hit-area {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
 }
 .marker-pin {
     width: 24px;
@@ -546,15 +585,34 @@ input:checked + .slider:before {
     overflow: hidden;
 }
 
-.lang-toggle {
+.ai-alert-header {
     display: flex;
+    justify-content: space-between;
+    align-items: center;
     border-bottom: 1px solid var(--border);
     background-color: var(--surface);
 }
 
+.ai-generated-badge {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent);
+    background-color: rgba(15, 118, 110, 0.1);
+    padding: 3px 8px;
+    border-radius: 12px;
+    margin-right: var(--sp-12);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.lang-toggle {
+    display: flex;
+    background-color: var(--surface);
+}
+
 .lang-btn {
-    flex: 1;
-    padding: var(--sp-12);
+    padding: var(--sp-12) var(--sp-16);
     border: none;
     background: transparent;
     cursor: pointer;
@@ -573,6 +631,7 @@ input:checked + .slider:before {
     padding: var(--sp-16);
     font-size: 14px;
     font-family: var(--font-devanagari);
+    line-height: 1.5;
 }
 
 .alternate-route {
@@ -583,59 +642,83 @@ input:checked + .slider:before {
     border-left: 4px solid var(--accent);
     border-radius: 0 var(--rad-8) var(--rad-8) 0;
     font-size: 14px;
-    margin-bottom: var(--sp-24);
+    margin-bottom: var(--sp-16);
+    align-items: flex-start;
 }
 
 .route-icon {
     color: var(--accent);
     flex-shrink: 0;
+    margin-top: 2px;
 }
 
 .subscribe-section {
     border-top: 1px solid var(--border);
-    padding-top: var(--sp-24);
+    padding-top: var(--sp-16);
+    margin-top: var(--sp-16);
 }
 
-.subscribe-section h4 {
-    margin-bottom: var(--sp-12);
-    font-size: 16px;
+.subscribe-label {
+    display: block;
+    margin-bottom: var(--sp-8);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-main);
 }
 
 .subscribe-form {
     display: flex;
     gap: var(--sp-8);
+    width: 100%;
 }
 
 .subscribe-form input {
     flex: 1;
-    padding: 0 var(--sp-12);
-    height: 44px;
-    border: 1px solid var(--border);
-    border-radius: var(--rad-8);
-    background-color: var(--bg-light);
-    color: var(--text-main);
-    font-family: var(--font-body);
-}
-
-.subscribe-form input:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: -1px;
-}
-
-.subscribe-form button {
     padding: 0 var(--sp-16);
-    height: 44px;
-    background-color: var(--accent);
-    color: white;
-    border: none;
+    height: 48px;
+    min-height: 48px;
+    border: 1.5px solid var(--border);
     border-radius: var(--rad-8);
+    background-color: var(--surface);
+    color: var(--text-main);
+    font-size: 16px; /* 16px prevents iOS browser auto-zoom */
+    font-family: var(--font-body);
+    box-sizing: border-box;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.subscribe-form input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.2);
+}
+
+.subscribe-form button,
+.subscribe-btn {
+    height: 48px;
+    min-height: 48px;
+    padding: 0 var(--sp-20);
+    background-color: var(--surface);
+    color: var(--accent);
+    border: 1.5px solid var(--accent);
+    border-radius: var(--rad-8);
+    font-size: 15px;
     font-weight: 600;
     cursor: pointer;
-    transition: opacity 0.2s;
+    white-space: nowrap;
+    box-sizing: border-box;
+    transition: all 0.2s;
 }
 
-.subscribe-form button:hover {
-    opacity: 0.9;
+.subscribe-form button:hover,
+.subscribe-btn:hover {
+    background-color: rgba(15, 118, 110, 0.08);
+}
+
+.subscribe-form button:focus-visible,
+.subscribe-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
 }
 
 /* Skeleton Loaders */
@@ -758,16 +841,18 @@ input:checked + .slider:before {
         border-radius: var(--rad-24);
         box-shadow: var(--shadow-sm);
         gap: var(--sp-12);
+        z-index: 1200; /* Stays visible above the sheet */
     }
     
     .bottom-sheet {
         width: 100%;
-        height: 75vh; /* Max height reduced slightly for better map visibility */
+        height: 85vh;
         border-left: none;
         border-radius: var(--rad-24) var(--rad-24) 0 0;
         transform: translateY(100%); /* fully hidden */
         transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
         box-shadow: 0 -8px 24px rgba(20, 33, 61, 0.12);
+        z-index: 1000;
     }
     
     .bottom-sheet.sheet-hidden {
@@ -779,7 +864,7 @@ input:checked + .slider:before {
     }
     
     .bottom-sheet.sheet-half {
-        transform: translateY(calc(100% - 40vh));
+        transform: translateY(calc(100% - 50vh)); /* Half state (about 50vh) */
     }
     
     .bottom-sheet.sheet-full {
@@ -822,6 +907,7 @@ input:checked + .slider:before {
 /* Tide Styles */
 .tide-block {
     margin-top: var(--sp-16);
+    margin-bottom: 16px; /* 16px margin below chart so it does not touch language tabs */
     padding-top: var(--sp-12);
     border-top: 1px solid var(--border);
 }
@@ -830,7 +916,7 @@ input:checked + .slider:before {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: var(--sp-12);
+    margin-bottom: var(--sp-8);
 }
 
 .tide-title {
@@ -854,26 +940,66 @@ input:checked + .slider:before {
 .tide-info {
     font-size: 0.85rem;
     color: var(--text-muted);
-    margin-bottom: var(--sp-12);
+    margin-bottom: var(--sp-8);
 }
 
 .tide-info strong {
     color: var(--text-main);
 }
 
+.tide-approx-note {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 400;
+    margin-left: 2px;
+}
+
+.tide-legend {
+    display: flex;
+    gap: var(--sp-16);
+    margin-bottom: var(--sp-8);
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.tide-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.tide-legend-bar {
+    width: 12px;
+    height: 8px;
+    background-color: var(--accent);
+    border-radius: 2px;
+    display: inline-block;
+}
+
+.tide-legend-line {
+    width: 14px;
+    height: 2px;
+    background-color: var(--text-main);
+    border-radius: 1px;
+    display: inline-block;
+}
+
 .mini-timeline-container {
     width: 100%;
-    height: 80px;
+    height: 110px;
     background: #fff;
     border: 1px solid var(--border);
     border-radius: var(--rad-8);
     position: relative;
-    overflow: hidden;
+    padding: 6px 8px;
+    box-sizing: border-box;
+    overflow: visible;
 }
 
 /* Report Styles */
 .community-reports-section {
-    margin-top: var(--sp-24);
+    margin-top: var(--sp-16);
     border-top: 1px solid var(--border);
     padding-top: var(--sp-16);
 }
@@ -886,7 +1012,7 @@ input:checked + .slider:before {
 }
 
 .reports-title {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 600;
 }
 
@@ -897,6 +1023,17 @@ input:checked + .slider:before {
     padding: 2px 8px;
     border-radius: 12px;
     font-weight: 600;
+}
+
+.reports-empty {
+    padding: var(--sp-12) var(--sp-16);
+    background-color: var(--bg-light);
+    border-radius: var(--rad-8);
+    border: 1px dashed var(--border);
+    font-size: 13px;
+    color: var(--text-muted);
+    text-align: center;
+    line-height: 1.4;
 }
 
 .report-list {
@@ -924,6 +1061,16 @@ input:checked + .slider:before {
     font-size: 12px;
 }
 
+.sev-tag {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.sev-tag.impassable {
+    color: var(--high-color);
+}
+
 .report-note {
     font-size: 13px;
     margin-top: var(--sp-4);
@@ -938,23 +1085,45 @@ input:checked + .slider:before {
 
 .report-action-area {
     margin-top: var(--sp-16);
+    margin-bottom: var(--sp-4);
 }
 
-.report-btn {
+.primary-report-btn {
     width: 100%;
-    padding: var(--sp-12);
-    background-color: var(--surface);
-    border: 1px solid var(--border);
+    min-height: 48px;
+    height: 48px;
+    background-color: var(--accent);
+    color: white;
+    border: none;
     border-radius: var(--rad-8);
+    font-size: 15px;
     font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
     cursor: pointer;
     box-shadow: var(--shadow-sm);
-    transition: all 0.2s;
+    transition: background-color 0.2s, transform 0.1s, box-shadow 0.2s;
+    box-sizing: border-box;
 }
 
-.report-btn:hover {
-    border-color: var(--accent);
-    color: var(--accent);
+.primary-report-btn:hover {
+    background-color: #0b5e58;
+    box-shadow: var(--shadow-md);
+}
+
+.primary-report-btn:active {
+    transform: scale(0.99);
+}
+
+.primary-report-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.primary-report-btn .btn-icon {
+    flex-shrink: 0;
 }
 
 /* Modal */
@@ -1009,19 +1178,30 @@ input:checked + .slider:before {
 
 .sev-option input { display: none; }
 .sev-btn {
-    display: block;
-    text-align: center;
-    padding: var(--sp-8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: var(--sp-12) var(--sp-8);
+    min-height: 48px;
     border: 1px solid var(--border);
     border-radius: var(--rad-8);
     font-size: 13px;
+    font-weight: 500;
     cursor: pointer;
     background-color: var(--bg-light);
+    transition: all 0.2s;
+    box-sizing: border-box;
+}
+
+.sev-btn svg {
+    flex-shrink: 0;
 }
 
 .sev-option input:checked + .sev-btn {
     border-color: var(--accent);
     background-color: rgba(15, 118, 110, 0.1);
+    color: var(--accent);
     font-weight: 600;
 }
 

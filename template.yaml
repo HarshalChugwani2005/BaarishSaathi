@@ -158,7 +158,7 @@ Resources:
             Path: /risk
             Method: GET
       Policies:
-        - DynamoDBReadPolicy:
+        - DynamoDBCrudPolicy:
             TableName: !Ref FloodSpotsTable
         - DynamoDBReadPolicy:
             TableName: !Ref FloodReportsTable

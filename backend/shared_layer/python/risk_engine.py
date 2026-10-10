@@ -9,12 +9,13 @@ def get_bedrock_client():
     if bedrock is None:
         region = os.environ.get("BEDROCK_REGION", "us-east-1")
         from botocore.config import Config
-        config = Config(read_timeout=3, connect_timeout=1, retries={'max_attempts': 1})
+        config = Config(read_timeout=10, connect_timeout=3, retries={'max_attempts': 1})
         bedrock = boto3.client(service_name='bedrock-runtime', region_name=region, config=config)
     return bedrock
 
 _tide_cache = {}
 _tide_cache_time = None
+_bedrock_cache = {}
 
 def fetch_tide_data(lat, lng, now):
     global _tide_cache, _tide_cache_time
@@ -231,28 +232,38 @@ def calculate_risk_score(rain_next_3h, rain_next_24h, precip_prob, historical_se
         
     return score, risk_level, breakdown, tide_data, reports_data
 
-def generate_alert(spot, risk_level, rain_3h, rain_24h, tide_data=None, community_confirmed=False):
-    route = spot.get('alternateRoute', 'an alternate route').replace('Use ', '').replace('Take ', '').rstrip('.')
+def generate_alert(spot, risk_level, rain_3h, rain_24h, tide_data=None, community_confirmed=False, simulate=""): 
+    global _bedrock_cache
+    now = datetime.utcnow()
     
+    # 10 minute cache per spot, simulate mode, and risk level
+    cache_key = f"{spot['spotId']}_{simulate}_{risk_level}"
+    if cache_key in _bedrock_cache:
+        cache_time, cached_alert = _bedrock_cache[cache_key]
+        if (now - cache_time).total_seconds() < 600:
+            return cached_alert
+
     tide_context_en = ""
     tide_context_hi = ""
     tide_context_mr = ""
     
     if tide_data and tide_data.get('coincidesWithRain'):
         tide_time = tide_data.get('nextHighTideTime', 'soon')
-        tide_context_en = f" Heavy rain coincides with high tide at {tide_time}, so drainage will be slow."
-        tide_context_hi = f" भारी बारिश {tide_time} पर उच्च ज्वार के साथ मेल खाती है, इसलिए जल निकासी धीमी होगी।"
-        tide_context_mr = f" {tide_time} च्या भरतीसह जोरदार पाऊस असल्यामुळे पाण्याचा निचरा संथ होईल."
+        tide_context_en = f" Heavy rain will coincide with high tide at {tide_time}, slowing down drainage."
+        tide_context_hi = f" भारी बारिश {tide_time} पर उच्च ज्वार के साथ होगी, जिससे जल निकासी धीमी हो जाएगी।"
+        tide_context_mr = f" जोरदार पाऊस {tide_time} च्या भरतीसोबत असल्यामुळे पाण्याचा निचरा संथ होईल."
 
-    community_context_en = " Residents are also reporting water on the road." if community_confirmed else ""
-    community_context_hi = " निवासी भी सड़क पर पानी की सूचना दे रहे हैं।" if community_confirmed else ""
-    community_context_mr = " स्थानिक नागरिक देखील रस्त्यावर पाणी साचल्याची माहिती देत आहेत." if community_confirmed else ""
+    community_context_en = " Local residents have also reported water accumulation on the road." if community_confirmed else ""
+    community_context_hi = " स्थानीय निवासियों ने भी सड़क पर जलभराव की सूचना दी है।" if community_confirmed else ""
+    community_context_mr = " स्थानिक नागरिकांनीही रस्त्यावर पाणी साचल्याची माहिती दिली आहे." if community_confirmed else ""
 
     fallback = {
-        "en": f"Risk level at {spot['name']} is {risk_level}. Next 3h rainfall: {rain_3h}mm.{tide_context_en}{community_context_en} Consider using {route}.",
-        "hi": f"{spot['name']} पर जोखिम का स्तर {risk_level} है। 3 घंटे में {rain_3h}mm बारिश।{tide_context_hi}{community_context_hi} कृपया {route} का उपयोग करें।",
-        "mr": f"{spot['name']} येथे धोक्याची पातळी {risk_level} आहे. पुढील ३ तासात {rain_3h}mm पाऊस.{tide_context_mr}{community_context_mr} कृपया {route}चा वापर करा."
+        "en": f"{spot['name']} is currently at {risk_level} risk of flooding over the next 3 hours.{tide_context_en}{community_context_en}",
+        "hi": f"{spot['name']} पर अगले 3 घंटों में बाढ़ का {risk_level} जोखिम है।{tide_context_hi}{community_context_hi}",
+        "mr": f"{spot['name']} येथे पुढील ३ तासांत पूर येण्याची शक्यता {risk_level} आहे.{tide_context_mr}{community_context_mr}",
+        "alertSource": "fallback"
     }
+
     try:
         client = get_bedrock_client()
         model_id = "us.amazon.nova-lite-v1:0"
@@ -261,27 +272,18 @@ def generate_alert(spot, risk_level, rain_3h, rain_24h, tide_data=None, communit
 The current status for {spot['name']}:
 - Risk Level: {risk_level}
 - Expected rain next 3 hours: {rain_3h} mm
-- Expected rain next 24 hours: {rain_24h} mm
-- Alternate Route: {spot.get('alternateRoute', 'None specified')}"""
+- Expected rain next 24 hours: {rain_24h} mm"""
 
         if tide_data and tide_data.get('coincidesWithRain'):
-            prompt += f"\n- High Tide Alert: Heavy rain coincides with high tide at {tide_data.get('nextHighTideTime')}, leading to slow drainage."
+            prompt += f"\n- High Tide Alert: Heavy rain coincides with high tide at {tide_data.get('nextHighTideTime')} (IST), leading to slow drainage."
 
         if community_confirmed:
             prompt += "\n- Community Confirmed: Residents are also reporting water on the road."
 
         prompt += """\n
 Task: Write a 2-sentence plain-language alert.
-Mention the spot name, the risk level, the time window, and the alternate route."""
-        
-        if tide_data and tide_data.get('coincidesWithRain'):
-            prompt += " Also briefly mention the high tide making drainage slow."
-            
-        if community_confirmed:
-            prompt += " Mention that residents are also reporting water on the road."
-            
-        prompt += """\nNever invent facts beyond the data given. Use only the provided numbers.
-Return ONLY a valid JSON object with keys "en" (English), "hi" (Hindi), and "mr" (Marathi). Do not include markdown formatting or backticks."""
+Mention the spot name, the risk level, the time window, and the tide overlap or community reports ONLY when present in the data. Do NOT repeat the alternate route. Do not start with "Risk level at...", do not list raw numbers like "25.0mm", and do not invent facts. Use IST times like "1:52 AM".
+Return ONLY a valid JSON object with keys "en" (English), "hi" (Hindi), and "mr" (Marathi). Write real Hindi and Marathi, not transliterated English. Do not include markdown formatting or backticks."""
 
         messages = [{"role": "user", "content": [{"text": prompt}]}]
         response = client.converse(
@@ -293,7 +295,13 @@ Return ONLY a valid JSON object with keys "en" (English), "hi" (Hindi), and "mr"
         if response_text.startswith("```json"): response_text = response_text[7:]
         if response_text.endswith("```"): response_text = response_text[:-3]
         if response_text.startswith("```"): response_text = response_text[3:]
-        return json.loads(response_text.strip())
+        
+        alert_result = json.loads(response_text.strip())
+        alert_result["alertSource"] = "bedrock"
+        _bedrock_cache[cache_key] = (now, alert_result)
+        return alert_result
     except Exception as e:
         print(f"Bedrock failure: {e}")
+        # Cache fallback too so we don't repeatedly fail if Bedrock is down
+        _bedrock_cache[cache_key] = (now, fallback)
         return fallback
