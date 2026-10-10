@@ -41,25 +41,6 @@
     --font-devanagari: 'Noto Sans Devanagari', 'Inter', sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-    :root {
-        --bg-light: #1A1A17;
-        --text-main: #F3F4F6;
-        --text-muted: #9CA3AF;
-        --accent: #14B8A6;
-        
-        --low-color: #4CAF50;
-        --low-bg: rgba(76, 175, 80, 0.15);
-        --medium-color: #FFB300;
-        --medium-bg: rgba(255, 179, 0, 0.15);
-        --high-color: #EF5350;
-        --high-bg: rgba(239, 83, 80, 0.15);
-        
-        --surface: #262626;
-        --border: #404040;
-    }
-}
-
 * {
     box-sizing: border-box;
     margin: 0;
@@ -343,16 +324,21 @@ input:checked + .slider:before {
     border: none;
 }
 .marker-pin {
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
-    border: 3px solid var(--surface);
-    box-shadow: var(--shadow-md);
-    transition: transform 0.2s;
+    border: 3px solid #FFFFFF;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.marker-pin:hover {
+    transform: scale(1.1);
 }
 .marker-pin.selected {
-    transform: scale(1.3);
+    transform: scale(1.4);
+    border: 3px solid var(--accent);
     z-index: 1000 !important;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
 }
 .marker-pin.low { background-color: var(--low-color); }
 .marker-pin.medium { background-color: var(--medium-color); }
@@ -360,9 +346,9 @@ input:checked + .slider:before {
 .marker-pin.unknown { background-color: var(--text-muted); }
 
 @keyframes pulse-halo {
-    0% { box-shadow: 0 0 0 0 rgba(198, 40, 40, 0.7); }
-    70% { box-shadow: 0 0 0 15px rgba(198, 40, 40, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(198, 40, 40, 0); }
+    0% { box-shadow: 0 0 0 0 rgba(198, 40, 40, 0.5), 0 4px 10px rgba(0, 0, 0, 0.3); }
+    70% { box-shadow: 0 0 0 20px rgba(198, 40, 40, 0), 0 4px 10px rgba(0, 0, 0, 0.3); }
+    100% { box-shadow: 0 0 0 0 rgba(198, 40, 40, 0), 0 4px 10px rgba(0, 0, 0, 0.3); }
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -380,17 +366,14 @@ input:checked + .slider:before {
     position: absolute;
     top: 0; left: 0; width: 100%; height: 100%;
     background-color: rgba(247, 244, 238, 0.8);
-    backdrop-filter: blur(4px);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     z-index: 2000;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: var(--sp-16);
-}
-
-@media (prefers-color-scheme: dark) {
-    .overlay { background-color: rgba(26, 26, 23, 0.8); }
 }
 
 .overlay.hidden { display: none; }
@@ -776,11 +759,12 @@ input:checked + .slider:before {
     
     .bottom-sheet {
         width: 100%;
-        height: 85vh; /* Max height */
+        height: 75vh; /* Max height reduced slightly for better map visibility */
         border-left: none;
         border-radius: var(--rad-24) var(--rad-24) 0 0;
         transform: translateY(100%); /* fully hidden */
         transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+        box-shadow: 0 -8px 24px rgba(20, 33, 61, 0.12);
     }
     
     .bottom-sheet.sheet-hidden {
@@ -788,11 +772,11 @@ input:checked + .slider:before {
     }
     
     .bottom-sheet.sheet-peek {
-        transform: translateY(calc(100% - 22vh));
+        transform: translateY(calc(100% - 14vh)); /* Only peek the handle and title */
     }
     
     .bottom-sheet.sheet-half {
-        transform: translateY(calc(100% - 50vh));
+        transform: translateY(calc(100% - 40vh));
     }
     
     .bottom-sheet.sheet-full {
