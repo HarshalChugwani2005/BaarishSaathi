@@ -61,12 +61,31 @@ def lambda_handler(event, context):
                 
             tide_data = dict(tide_cache) if tide_cache and tide_sensitivity > 0 else None
             
-            score, risk_level, breakdown, final_tide_data = risk_engine.calculate_risk_score(
-                rain_3h, rain_24h, prob, historical, low_lying, tide_sensitivity, tide_data
+            reports = []
+            try:
+                reports_table = dynamodb.Table(os.environ.get("REPORTS_TABLE_NAME", "FloodReports"))
+                now_ts = int(now.timestamp())
+                three_hours_ago = str(now_ts - (3 * 3600))
+                from boto3.dynamodb.conditions import Key
+                res = reports_table.query(
+                    KeyConditionExpression=Key('spotId').eq(spot_id) & Key('reportId').gt(three_hours_ago),
+                    ScanIndexForward=False,
+                    Limit=50
+                )
+                reports = res.get('Items', [])
+                for r in reports:
+                    if 'createdAt' in r:
+                        r['createdAt'] = int(r['createdAt'])
+            except Exception as e:
+                print(f"Scheduled check failed to fetch reports for {spot_id}: {e}")
+            
+            score, risk_level, breakdown, final_tide_data, reports_data = risk_engine.calculate_risk_score(
+                rain_3h, rain_24h, prob, historical, low_lying, tide_sensitivity, tide_data, reports, int(now.timestamp())
             )
             
             if risk_level == "HIGH":
-                alert = risk_engine.generate_alert(spot, risk_level, round(rain_3h, 2), round(rain_24h, 2), final_tide_data)
+                community_confirmed = reports_data.get('communityConfirmed', False) if reports_data else False
+                alert = risk_engine.generate_alert(spot, risk_level, round(rain_3h, 2), round(rain_24h, 2), final_tide_data, community_confirmed)
                 english_alert = alert.get("en", "High risk flood alert.")
                 
                 sns.publish(

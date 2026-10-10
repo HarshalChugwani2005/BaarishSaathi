@@ -102,7 +102,64 @@ def analyze_tide(hourly_times, hourly_heights, now):
         "tideLevel": tide_level
     }
 
-def calculate_risk_score(rain_next_3h, rain_next_24h, precip_prob, historical_severity, low_lying, tide_sensitivity=0.0, tide_data=None):
+def reports_bump(reports, now_ts, forecast_rain):
+    if not reports:
+        return 0.0, 0, 0, False
+        
+    recent_reports = []
+    seen_hashes = set()
+    latest_report_at = 0
+    
+    for r in reports:
+        created_at = r.get('createdAt', 0)
+        age_seconds = now_ts - created_at
+        if age_seconds <= 7200 and age_seconds >= 0: # 2 hours
+            if created_at > latest_report_at:
+                latest_report_at = created_at
+            h = r.get('reporterHash')
+            if h and h not in seen_hashes:
+                seen_hashes.add(h)
+                recent_reports.append(r)
+                
+    if not recent_reports:
+        return 0.0, 0, 0, False
+        
+    weighted_sum = 0.0
+    reporters_last_hour = 0
+    has_report_older_than_30m = False
+    
+    for r in recent_reports:
+        age_seconds = now_ts - r.get('createdAt', 0)
+        age_minutes = age_seconds / 60.0
+        
+        if age_minutes <= 60:
+            reporters_last_hour += 1
+        if age_minutes > 30:
+            has_report_older_than_30m = True
+            
+        if age_minutes <= 30:
+            recency_weight = 1.0
+        else:
+            recency_weight = 1.0 - ((age_minutes - 30) * (0.7 / 90.0))
+            
+        sev = r.get('severity')
+        sev_weight = 0.5 # ANKLE
+        if sev == 'KNEE': sev_weight = 1.0
+        elif sev == 'WAIST': sev_weight = 1.5
+        elif sev == 'IMPASSABLE': sev_weight = 2.0
+        
+        weighted_sum += (recency_weight * sev_weight)
+        
+    bump = min(20.0, 6.0 * weighted_sum)
+    
+    if forecast_rain == 0 and not has_report_older_than_30m:
+        bump = min(bump, 10.0)
+        
+    community_confirmed = (reporters_last_hour >= 3)
+    
+    return bump, len(recent_reports), latest_report_at, community_confirmed
+
+def calculate_risk_score(rain_next_3h, rain_next_24h, precip_prob, historical_severity, low_lying, tide_sensitivity=0.0, tide_data=None, reports=None, now_ts=0):
     rain_3h_normalized = min(rain_next_3h / 50.0, 1.0)
     rain_24h_normalized = min(rain_next_24h / 150.0, 1.0)
     prob_normalized = min(precip_prob / 100.0, 1.0)
@@ -129,6 +186,8 @@ def calculate_risk_score(rain_next_3h, rain_next_24h, precip_prob, historical_se
     tide_factor = 15.0 * tide_sensitivity * tide_level_multiplier
     compound_bonus = 10.0 * tide_sensitivity if coincides_with_rain else 0.0
 
+    r_bump, r_count, r_latest, community_confirmed = reports_bump(reports, now_ts, rain_next_3h)
+
     score = (
         rain_3h_normalized * 35.0 +
         rain_24h_normalized * 20.0 +
@@ -136,7 +195,8 @@ def calculate_risk_score(rain_next_3h, rain_next_24h, precip_prob, historical_se
         hist_normalized * 15.0 +
         (5.0 if low_lying else 0.0) +
         tide_factor +
-        compound_bonus
+        compound_bonus +
+        r_bump
     )
     score = min(round(score), 100)
     
@@ -154,15 +214,24 @@ def calculate_risk_score(rain_next_3h, rain_next_24h, precip_prob, historical_se
         "historical_score": round(hist_normalized * 15.0, 2),
         "low_lying_score": 5.0 if low_lying else 0.0,
         "tide_factor": round(tide_factor, 2),
-        "compound_bonus": round(compound_bonus, 2)
+        "compound_bonus": round(compound_bonus, 2),
+        "reports": round(r_bump, 2)
     }
     
     if tide_data:
         tide_data['coincidesWithRain'] = coincides_with_rain
         
-    return score, risk_level, breakdown, tide_data
+    reports_data = None
+    if reports is not None:
+        reports_data = {
+            "countLast2h": r_count,
+            "latestReportAt": r_latest,
+            "communityConfirmed": community_confirmed
+        }
+        
+    return score, risk_level, breakdown, tide_data, reports_data
 
-def generate_alert(spot, risk_level, rain_3h, rain_24h, tide_data=None):
+def generate_alert(spot, risk_level, rain_3h, rain_24h, tide_data=None, community_confirmed=False):
     route = spot.get('alternateRoute', 'an alternate route').replace('Use ', '').replace('Take ', '').rstrip('.')
     
     tide_context_en = ""
@@ -175,10 +244,14 @@ def generate_alert(spot, risk_level, rain_3h, rain_24h, tide_data=None):
         tide_context_hi = f" भारी बारिश {tide_time} पर उच्च ज्वार के साथ मेल खाती है, इसलिए जल निकासी धीमी होगी।"
         tide_context_mr = f" {tide_time} च्या भरतीसह जोरदार पाऊस असल्यामुळे पाण्याचा निचरा संथ होईल."
 
+    community_context_en = " Residents are also reporting water on the road." if community_confirmed else ""
+    community_context_hi = " निवासी भी सड़क पर पानी की सूचना दे रहे हैं।" if community_confirmed else ""
+    community_context_mr = " स्थानिक नागरिक देखील रस्त्यावर पाणी साचल्याची माहिती देत आहेत." if community_confirmed else ""
+
     fallback = {
-        "en": f"Risk level at {spot['name']} is {risk_level}. Next 3h rainfall: {rain_3h}mm.{tide_context_en} Consider using {route}.",
-        "hi": f"{spot['name']} पर जोखिम का स्तर {risk_level} है। 3 घंटे में {rain_3h}mm बारिश।{tide_context_hi} कृपया {route} का उपयोग करें।",
-        "mr": f"{spot['name']} येथे धोक्याची पातळी {risk_level} आहे. पुढील ३ तासात {rain_3h}mm पाऊस.{tide_context_mr} कृपया {route}चा वापर करा."
+        "en": f"Risk level at {spot['name']} is {risk_level}. Next 3h rainfall: {rain_3h}mm.{tide_context_en}{community_context_en} Consider using {route}.",
+        "hi": f"{spot['name']} पर जोखिम का स्तर {risk_level} है। 3 घंटे में {rain_3h}mm बारिश।{tide_context_hi}{community_context_hi} कृपया {route} का उपयोग करें।",
+        "mr": f"{spot['name']} येथे धोक्याची पातळी {risk_level} आहे. पुढील ३ तासात {rain_3h}mm पाऊस.{tide_context_mr}{community_context_mr} कृपया {route}चा वापर करा."
     }
     try:
         client = get_bedrock_client()
@@ -194,6 +267,9 @@ The current status for {spot['name']}:
         if tide_data and tide_data.get('coincidesWithRain'):
             prompt += f"\n- High Tide Alert: Heavy rain coincides with high tide at {tide_data.get('nextHighTideTime')}, leading to slow drainage."
 
+        if community_confirmed:
+            prompt += "\n- Community Confirmed: Residents are also reporting water on the road."
+
         prompt += """\n
 Task: Write a 2-sentence plain-language alert.
 Mention the spot name, the risk level, the time window, and the alternate route."""
@@ -201,7 +277,10 @@ Mention the spot name, the risk level, the time window, and the alternate route.
         if tide_data and tide_data.get('coincidesWithRain'):
             prompt += " Also briefly mention the high tide making drainage slow."
             
-        prompt += """\nNever invent facts beyond the data given.
+        if community_confirmed:
+            prompt += " Mention that residents are also reporting water on the road."
+            
+        prompt += """\nNever invent facts beyond the data given. Use only the provided numbers.
 Return ONLY a valid JSON object with keys "en" (English), "hi" (Hindi), and "mr" (Marathi). Do not include markdown formatting or backticks."""
 
         messages = [{"role": "user", "content": [{"text": prompt}]}]

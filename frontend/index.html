@@ -41,6 +41,14 @@
                         </label>
                         <span class="sim-label">Heavy rain demo</span>
                     </div>
+
+                    <div class="control-group simulate-toggle">
+                        <label class="switch" aria-label="Toggle Community Reports">
+                            <input type="checkbox" id="reports-toggle" checked>
+                            <span class="slider round"></span>
+                        </label>
+                        <span class="sim-label">Show community reports</span>
+                    </div>
                     
                     <div class="control-group search-group mobile-only">
                         <select id="spot-select" aria-label="Choose a location">
@@ -67,6 +75,7 @@
                     <div class="legend-item"><span class="badge-icon low"></span>LOW</div>
                     <div class="legend-item"><span class="badge-icon medium"></span>MEDIUM</div>
                     <div class="legend-item"><span class="badge-icon high"></span>HIGH</div>
+                    <div class="legend-item"><span class="report-legend-icon">💧</span>Report</div>
                 </div>
 
                 <div id="global-loading" class="overlay hidden" aria-live="polite">
@@ -87,10 +96,18 @@
                             <h2 id="card-title" class="spot-title">Select a spot</h2>
                             <div id="card-badge" class="badge"></div>
                         </div>
-                        <button class="close-btn" id="close-card" aria-label="Close details">&times;</button>
+                        <button class="close-btn sheet-close-btn" id="close-card" aria-label="Close details">&times;</button>
                     </div>
                     <div id="card-content">
                         <!-- Content dynamically injected via app.js -->
+                    </div>
+
+                    <div id="community-reports-section" class="community-reports-section hidden">
+                        <!-- Injected via app.js -->
+                    </div>
+
+                    <div class="report-action-area hidden" id="report-action-area">
+                        <button id="open-report-modal" class="report-btn">🚨 Report flooding here</button>
                     </div>
                     
                     <div id="subscribe-section" class="subscribe-section hidden">
@@ -100,6 +117,55 @@
                             <button type="submit">Subscribe</button>
                         </form>
                     </div>
+                </div>
+            </div>
+
+            <!-- Report Modal -->
+            <div id="report-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="report-modal-title">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3 id="report-modal-title">Report Flooding</h3>
+                        <button class="close-btn modal-close" id="close-report-modal" aria-label="Close modal">&times;</button>
+                    </div>
+                    <form id="report-form" class="report-form">
+                        <label class="form-label">Severity *</label>
+                        <div class="severity-options">
+                            <label class="sev-option">
+                                <input type="radio" name="severity" value="ANKLE" required>
+                                <span class="sev-btn">👟 Ankle deep</span>
+                            </label>
+                            <label class="sev-option">
+                                <input type="radio" name="severity" value="KNEE">
+                                <span class="sev-btn">👢 Knee deep</span>
+                            </label>
+                            <label class="sev-option">
+                                <input type="radio" name="severity" value="WAIST">
+                                <span class="sev-btn">🩳 Waist deep</span>
+                            </label>
+                            <label class="sev-option">
+                                <input type="radio" name="severity" value="IMPASSABLE">
+                                <span class="sev-btn">🛑 Can't pass</span>
+                            </label>
+                        </div>
+                        
+                        <label class="form-label">Note (optional)</label>
+                        <textarea id="report-note" maxlength="140" placeholder="e.g. Water is rising quickly, avoid the left lane." rows="2"></textarea>
+                        <div class="char-count"><span id="note-count">0</span>/140</div>
+                        
+                        <label class="form-label">Photo (optional)</label>
+                        <div class="photo-upload-area">
+                            <input type="file" id="report-photo" accept="image/*" capture="environment" class="hidden">
+                            <button type="button" id="trigger-photo-upload" class="photo-btn">📷 Add Photo</button>
+                            <div id="photo-preview-container" class="hidden">
+                                <img id="photo-preview" src="" alt="Photo preview">
+                                <button type="button" id="remove-photo" class="remove-photo-btn">&times;</button>
+                            </div>
+                        </div>
+
+                        <p class="disclaimer-text">Reports are from the public and are unverified. Don't put yourself at risk to take a photo.</p>
+                        
+                        <button type="submit" id="submit-report-btn" class="submit-btn">Submit Report</button>
+                    </form>
                 </div>
             </div>
         </main>

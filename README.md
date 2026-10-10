@@ -15,12 +15,21 @@ BaarishSaathi solves this by marrying hyper-local Open-Meteo rainfall forecasts 
 
 ---
 
-## 🚀 Features
+## 🌟 Features
 - **Interactive Leaflet Map**: Real-time visualization of 15 chronic Mumbai flood spots, color-coded by current risk level (Low / Medium / High).
-- **Intelligent Tide-Aware Risk Scoring**: Evaluates a combination of 3-hour rainfall (35%), 24-hour rainfall (20%), precipitation probability (10%), historical spot severity (15%), elevation (5%), and **Tide Factor (15%)**. Spots are assigned a `tideSensitivity` score; when heavy rainfall (>10mm/3h) overlaps with a high tide peak window, a **compound bonus (+10)** is applied to rapidly elevate coastal choke points.
-- **Tri-Lingual AI Advisories**: Amazon Bedrock translates complex meteorological data into easily digestible, multi-lingual alerts for local citizens.
+- **Crowdsourced Flood Reports**: Users can report waterlogging directly from the map with severity (Ankle, Knee, Waist, Impassable), a short note, and a photo. Recent community reports are visible as map pins.
+- **Intelligent Tide & Community-Aware Risk Scoring**: Evaluates 3-hour rainfall (35%), 24-hour rainfall (20%), precipitation probability (10%), historical spot severity (15%), elevation (5%), and **Tide Factor (15%)**. Spots are assigned a `tideSensitivity` score. 
+  - **Compound Bonus**: When heavy rainfall (>10mm/3h) overlaps with a high tide peak window, a compound bonus (+10) is applied.
+  - **Community Bump**: Confirmed recent reports apply a dynamic bump to the risk score (up to +20). The bump scales by severity and decays over 2 hours.
+- **Tri-Lingual AI Advisories**: Amazon Bedrock translates complex meteorological data and community reports into easily digestible, multi-lingual alerts for local citizens.
 - **Automated SNS Alerts**: Users can subscribe to their specific commute bottleneck and receive targeted email alerts via AWS SNS when danger thresholds are breached.
 - **Serverless & Ultra-Fast**: Built on a 100% AWS serverless backbone ensuring high availability, zero cold-start latency, and near-zero idle costs.
+
+### 🛡️ Abuse Prevention & Privacy
+- **Rate Limiting**: Users are limited to 3 reports per hour, tracked via a SHA-256 hash of their IP address and a secret salt. Raw IPs are **never** stored.
+- **Consensus Required**: A single spammer submitting multiple reports only counts as one distinct reporter. It requires 3 or more distinct reporters within an hour to trigger a "Community Confirmed" status.
+- **Dry-Day Safeguard**: On days with 0mm forecast rain, the community score bump is hard-capped unless backed up by older reports, preventing pranksters from turning a sunny day into a "HIGH" risk.
+- **Privacy-First Photo Uploads**: Photos are resized client-side (stripping EXIF/GPS metadata) before being uploaded directly to a private S3 bucket via presigned URLs. Photos auto-delete after 2 days via an S3 lifecycle rule.
 
 ---
 

@@ -52,6 +52,65 @@ Resources:
           KeyType: HASH
       BillingMode: PAY_PER_REQUEST
 
+  FloodReportsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: FloodReports
+      AttributeDefinitions:
+        - AttributeName: spotId
+          AttributeType: S
+        - AttributeName: reportId
+          AttributeType: S
+        - AttributeName: reporterHash
+          AttributeType: S
+      KeySchema:
+        - AttributeName: spotId
+          KeyType: HASH
+        - AttributeName: reportId
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: ReporterIndex
+          KeySchema:
+            - AttributeName: reporterHash
+              KeyType: HASH
+            - AttributeName: reportId
+              KeyType: RANGE
+          Projection:
+            ProjectionType: KEYS_ONLY
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+      BillingMode: PAY_PER_REQUEST
+
+  ReportPhotosBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "baarish-saathi-photos-${AWS::AccountId}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldPhotos
+            Status: Enabled
+            ExpirationInDays: 2
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - "*"
+            AllowedMethods:
+              - GET
+              - PUT
+            AllowedOrigins:
+              - "*"
+            MaxAge: 3000
+
   # SNS Topic
   BaarishAlertsTopic:
     Type: AWS::SNS::Topic
@@ -101,6 +160,8 @@ Resources:
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Ref FloodSpotsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref FloodReportsTable
         - Statement:
             - Effect: Allow
               Action: bedrock:InvokeModel
@@ -154,8 +215,51 @@ Resources:
             TableName: !Ref FloodSpotsTable
         - DynamoDBReadPolicy:
             TableName: !Ref SubscribersTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref FloodReportsTable
         - SNSPublishMessagePolicy:
             TopicName: !GetAtt BaarishAlertsTopic.TopicName
+
+  ReportsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/reports/
+      Handler: app.lambda_handler
+      Timeout: 10
+      MemorySize: 256
+      Environment:
+        Variables:
+          REPORTS_TABLE: !Ref FloodReportsTable
+          PHOTOS_BUCKET: !Ref ReportPhotosBucket
+          SALT: "hackathon-secret-salt"
+      Events:
+        GetReports:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref BaarishApi
+            Path: /reports
+            Method: GET
+        PostReport:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref BaarishApi
+            Path: /reports
+            Method: POST
+        GetUploadUrl:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref BaarishApi
+            Path: /reports/upload-url
+            Method: POST
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref FloodReportsTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - s3:PutObject
+                - s3:GetObject
+              Resource: !Sub "${ReportPhotosBucket.Arn}/*"
 
   # Frontend Hosting
   FrontendBucket:

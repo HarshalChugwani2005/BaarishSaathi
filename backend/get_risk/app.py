@@ -9,6 +9,7 @@ import risk_engine
 
 dynamodb = None
 table = None
+reports_table_name = os.environ.get("REPORTS_TABLE_NAME", "FloodReports")
 
 def get_table():
     global dynamodb, table
@@ -59,15 +60,38 @@ def lambda_handler(event, context):
         if cached:
             try:
                 cache_time = datetime.fromisoformat(cached.get('timestamp', '2000-01-01T00:00:00'))
-                # 15 minute TTL
-                if now - cache_time < timedelta(minutes=15):
+                # 15 minute TTL default, but 5 minute if reports are present in the cached data
+                cache_data = cached.get('data', {})
+                ttl_minutes = 5 if cache_data.get('reports') and cache_data['reports'].get('countLast2h', 0) > 0 else 15
+                
+                if now - cache_time < timedelta(minutes=ttl_minutes):
                     return {
                         "statusCode": 200,
                         "headers": {"Access-Control-Allow-Origin": "*"},
-                        "body": json.dumps(cached['data'], cls=DecimalEncoder)
+                        "body": json.dumps(cache_data, cls=DecimalEncoder)
                     }
             except:
                 pass
+                
+        # Fetch recent reports for this spot
+        reports = []
+        try:
+            reports_table = dynamodb.Table(reports_table_name)
+            now_ts = int(now.timestamp())
+            three_hours_ago = str(now_ts - (3 * 3600))
+            from boto3.dynamodb.conditions import Key
+            res = reports_table.query(
+                KeyConditionExpression=Key('spotId').eq(spot_id) & Key('reportId').gt(three_hours_ago),
+                ScanIndexForward=False,
+                Limit=50
+            )
+            # convert Decimal to float/int before passing to risk_engine if needed, but DecimalEncoder handles it at JSON dump. We need to convert for risk_engine math.
+            reports = res.get('Items', [])
+            for r in reports:
+                if 'createdAt' in r:
+                    r['createdAt'] = int(r['createdAt'])
+        except Exception as e:
+            print(f"Failed to fetch reports: {e}")
             
         lat = float(spot.get("lat", 0))
         lng = float(spot.get("lng", 0))
@@ -116,12 +140,13 @@ def lambda_handler(event, context):
             if tide_sensitivity > 0:
                 tide_data = risk_engine.fetch_tide_data(19.07, 72.87, now_ist)
                 
-        score, risk_level, breakdown, tide_data = risk_engine.calculate_risk_score(
-            rain_next_3h, rain_next_24h, precip_prob, historical_severity, low_lying, tide_sensitivity, tide_data
+        score, risk_level, breakdown, tide_data, reports_data = risk_engine.calculate_risk_score(
+            rain_next_3h, rain_next_24h, precip_prob, historical_severity, low_lying, tide_sensitivity, tide_data, reports, int(now.timestamp())
         )
         
         # Don't cache full spot details to save DynamoDB write capacity, just what we need
-        alert = risk_engine.generate_alert(spot, risk_level, round(rain_next_3h, 2), round(rain_next_24h, 2), tide_data)
+        community_confirmed = reports_data.get('communityConfirmed', False) if reports_data else False
+        alert = risk_engine.generate_alert(spot, risk_level, round(rain_next_3h, 2), round(rain_next_24h, 2), tide_data, community_confirmed)
         
         # We must include spotDetails in the result for the frontend
         result = {
@@ -138,6 +163,9 @@ def lambda_handler(event, context):
         
         if tide_data:
             result['tide'] = tide_data
+            
+        if reports_data:
+            result['reports'] = reports_data
             
         # Clean spot to avoid nested circular updates in DynamoDB
         clean_spot = dict(spot)
