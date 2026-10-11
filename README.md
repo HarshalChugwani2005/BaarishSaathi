@@ -1,4 +1,4 @@
-# BaarishSaathi (बारिश साथी) 🌧️
+# BaarishSaathi🌧️
 
 > **Mumbai Monsoon Waterlogging Early-Warning & Alternate Route Advisor**  
 > Built for the *WeMakeDevs x AWS Hackathon* (Heat & Water Track).
